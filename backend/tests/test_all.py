@@ -20,7 +20,7 @@ def test_universal_login_all_roles():
     # Central Admin
     res_admin = client.post("/api/auth/login", json={
         "username_or_email": "admin",
-        "password": "SevaAdmin@2026#Secure"
+        "password": "SevaAdm!n#2026$Drdo"
     })
     assert res_admin.status_code == 200, res_admin.text
     data_admin = res_admin.json()
@@ -31,7 +31,7 @@ def test_universal_login_all_roles():
     # Department Head
     res_head = client.post("/api/auth/login", json={
         "username_or_email": "head.western",
-        "password": "HeadWestern@2026"
+        "password": "WestH3ad#2026$Transit"
     })
     assert res_head.status_code == 200
     data_head = res_head.json()
@@ -41,7 +41,7 @@ def test_universal_login_all_roles():
     # Personnel
     res_pers = client.post("/api/auth/login", json={
         "username_or_email": "priya.sharma",
-        "password": "Member@2026"
+        "password": "PriyaPass#2026$Duty"
     })
     assert res_pers.status_code == 200
     data_pers = res_pers.json()
@@ -74,7 +74,7 @@ def test_personnel_registration():
 # 3. Personnel Submits Pass Application & Views Applications
 def test_personnel_pass_application_lifecycle():
     # Login as Priya Sharma
-    res_login = client.post("/api/auth/login", json={"username_or_email": "priya.sharma", "password": "Member@2026"})
+    res_login = client.post("/api/auth/login", json={"username_or_email": "priya.sharma", "password": "PriyaPass#2026$Duty"})
     token = res_login.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -104,7 +104,7 @@ def test_personnel_pass_application_lifecycle():
 # 4. Department Head Reviews & Approves Application with Ed25519 Signature
 def test_department_head_approval_and_ed25519_issuance():
     # Personnel submits application
-    res_login_p = client.post("/api/auth/login", json={"username_or_email": "priya.sharma", "password": "Member@2026"})
+    res_login_p = client.post("/api/auth/login", json={"username_or_email": "priya.sharma", "password": "PriyaPass#2026$Duty"})
     p_headers = {"Authorization": f"Bearer {res_login_p.json()['access_token']}"}
 
     app_res = client.post("/api/passes/apply", json={
@@ -121,7 +121,7 @@ def test_department_head_approval_and_ed25519_issuance():
     app_id = app_res.json()["application_id"]
 
     # Login as Western Command Head
-    res_login_h = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "HeadWestern@2026"})
+    res_login_h = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "WestH3ad#2026$Transit"})
     h_headers = {"Authorization": f"Bearer {res_login_h.json()['access_token']}"}
 
     # Head approves application
@@ -144,7 +144,7 @@ def test_department_head_approval_and_ed25519_issuance():
 # 5. Cross-Department Isolation (IDOR Prevention)
 def test_cross_department_isolation():
     # Arvind has pending application in Northern Command (dept-nc-01)
-    res_login_nc = client.post("/api/auth/login", json={"username_or_email": "arvind.deshmukh", "password": "Member@2026"})
+    res_login_nc = client.post("/api/auth/login", json={"username_or_email": "arvind.deshmukh", "password": "ArvindPass#2026$Duty"})
     arvind_headers = {"Authorization": f"Bearer {res_login_nc.json()['access_token']}"}
 
     app_res = client.post("/api/passes/apply", json={
@@ -161,7 +161,7 @@ def test_cross_department_isolation():
     app_id = app_res.json()["application_id"]
 
     # Western Head tries to approve Northern Command application!
-    res_login_wc = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "HeadWestern@2026"})
+    res_login_wc = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "WestH3ad#2026$Transit"})
     wc_headers = {"Authorization": f"Bearer {res_login_wc.json()['access_token']}"}
 
     rogue_approve = client.post("/api/passes/review", json={
@@ -175,7 +175,7 @@ def test_cross_department_isolation():
 
 # 6. Rejection Requires a Reason
 def test_rejection_requires_reason():
-    res_login_h = client.post("/api/auth/login", json={"username_or_email": "head.northern", "password": "HeadNorthern@2026"})
+    res_login_h = client.post("/api/auth/login", json={"username_or_email": "head.northern", "password": "NorthH3ad#2026$Transit"})
     h_headers = {"Authorization": f"Bearer {res_login_h.json()['access_token']}"}
 
     # Reject without reason should fail
@@ -240,7 +240,7 @@ def test_public_qr_verification_scenarios():
 
 # 8. Revocation by Authorized Department Head
 def test_pass_revocation_lifecycle():
-    res_login_h = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "HeadWestern@2026"})
+    res_login_h = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "WestH3ad#2026$Transit"})
     h_headers = {"Authorization": f"Bearer {res_login_h.json()['access_token']}"}
 
     rev_res = client.post("/api/passes/revoke", json={
@@ -257,7 +257,7 @@ def test_pass_revocation_lifecycle():
 
 # 9. Central Admin Overview Metrics are DB-Derived
 def test_central_admin_metrics():
-    res_admin = client.post("/api/auth/login", json={"username_or_email": "admin", "password": "SevaAdmin@2026#Secure"})
+    res_admin = client.post("/api/auth/login", json={"username_or_email": "admin", "password": "SevaAdm!n#2026$Drdo"})
     admin_headers = {"Authorization": f"Bearer {res_admin.json()['access_token']}"}
 
     res_stats = client.get("/api/stats/admin-overview", headers=admin_headers)

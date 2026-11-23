@@ -96,7 +96,7 @@ def seed_database():
         """, (d["id"], d["service_id"], d["code"], d["name"], d["category"], d["location"], d["desc"], now_iso, now_iso))
 
     # 4. Personnel Officers
-    personnel_pw_hash = hash_password("Member@2026")
+    personnel_pw_hash = hash_password("PriyaPass#2026$Duty")
     personnel_list = [
         {
             "id": "user-priya-01",
@@ -134,13 +134,14 @@ def seed_database():
     ]
 
     for p in personnel_list:
+        pw = "ArvindPass#2026$Duty" if p["username"] == "arvind.deshmukh" else "PriyaPass#2026$Duty"
         cursor.execute("""
             INSERT OR IGNORE INTO profiles
             (id, username, email, password_hash, full_name, service_category, service_number, rank, phone,
              role, account_type, assigned_department_id, status, must_change_password, is_active, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PERSONNEL', 'personnel', ?, 'active', 0, 1, ?, ?)
         """, (
-            p["id"], p["username"], p["email"], personnel_pw_hash, p["name"],
+            p["id"], p["username"], p["email"], hash_password(pw), p["name"],
             p["service_category"], p["service_number"], p["rank"], p["phone"],
             p["dept_id"], now_iso, now_iso
         ))
@@ -151,7 +152,7 @@ def seed_database():
             "id": "user-head-wc-01",
             "username": "head.western",
             "email": "head.western@sevapass.internal",
-            "password": "HeadWestern@2026",
+            "password": "WestH3ad#2026$Transit",
             "name": "Maj. Gen. Rajesh Nair (Western Head)",
             "dept_id": "dept-wc-01",
             "officer_id": "user-devendra-01"
@@ -160,7 +161,7 @@ def seed_database():
             "id": "user-head-nc-01",
             "username": "head.northern",
             "email": "head.northern@sevapass.internal",
-            "password": "HeadNorthern@2026",
+            "password": "NorthH3ad#2026$Transit",
             "name": "Brig. Vikram Bakshi (Northern Head)",
             "dept_id": "dept-nc-01",
             "officer_id": "user-arvind-01"

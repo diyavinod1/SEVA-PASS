@@ -186,7 +186,7 @@ def test_e2e_pass_lifecycle_and_verification():
     # 1. Login as Personnel
     res_login = client.post("/api/auth/login", json={
         "username_or_email": "priya.sharma",
-        "password": "Member@2026"
+        "password": "PriyaPass#2026$Duty"
     })
     assert res_login.status_code == 200, res_login.text
     token_personnel = res_login.json()["access_token"]
@@ -213,7 +213,7 @@ def test_e2e_pass_lifecycle_and_verification():
     # 3. Login as Department Head (Western Command)
     res_head = client.post("/api/auth/login", json={
         "username_or_email": "head.western",
-        "password": "HeadWestern@2026"
+        "password": "WestH3ad#2026$Transit"
     })
     assert res_head.status_code == 200, res_head.text
     token_head = res_head.json()["access_token"]
@@ -267,7 +267,7 @@ def test_cross_department_idor_rejection():
     an application belonging to Western Command. (Strict Department Isolation).
     """
     # 1. Arvind submits application in Northern Command (dept-nc-01)
-    res_login_nc = client.post("/api/auth/login", json={"username_or_email": "arvind.deshmukh", "password": "Member@2026"})
+    res_login_nc = client.post("/api/auth/login", json={"username_or_email": "arvind.deshmukh", "password": "ArvindPass#2026$Duty"})
     arvind_headers = {"Authorization": f"Bearer {res_login_nc.json()['access_token']}"}
 
     res_app = client.post("/api/passes/apply", json={
@@ -285,7 +285,7 @@ def test_cross_department_idor_rejection():
     app_id = res_app.json()["application_id"]
 
     # 2. Western Head tries to approve Northern Command application!
-    res_login_wc = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "HeadWestern@2026"})
+    res_login_wc = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "WestH3ad#2026$Transit"})
     wc_headers = {"Authorization": f"Bearer {res_login_wc.json()['access_token']}"}
 
     rogue_approve = client.post("/api/passes/review", json={

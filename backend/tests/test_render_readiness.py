@@ -63,17 +63,17 @@ def test_sql_adapter_parameter_conversion():
 def test_login_auth_and_session():
     """Tests authentication across all three core roles."""
     # 1. Central Admin
-    res_a = client.post("/api/auth/login", json={"username_or_email": "admin", "password": "SevaAdmin@2026#Secure"})
+    res_a = client.post("/api/auth/login", json={"username_or_email": "admin", "password": "SevaAdm!n#2026$Drdo"})
     assert res_a.status_code == 200
     assert res_a.json()["role"] == "CENTRAL_ADMIN"
 
     # 2. Department Head
-    res_h = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "HeadWestern@2026"})
+    res_h = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "WestH3ad#2026$Transit"})
     assert res_h.status_code == 200
     assert res_h.json()["role"] == "DEPARTMENT_HEAD"
 
     # 3. Personnel
-    res_p = client.post("/api/auth/login", json={"username_or_email": "priya.sharma", "password": "Member@2026"})
+    res_p = client.post("/api/auth/login", json={"username_or_email": "priya.sharma", "password": "PriyaPass#2026$Duty"})
     assert res_p.status_code == 200
     assert res_p.json()["role"] == "PERSONNEL"
 
@@ -82,7 +82,7 @@ def test_personnel_apply_department_approve_and_sign():
     End-to-end test of pass application, approval, and cryptographic signing.
     """
     # 1. Personnel login
-    res_p = client.post("/api/auth/login", json={"username_or_email": "priya.sharma", "password": "Member@2026"})
+    res_p = client.post("/api/auth/login", json={"username_or_email": "priya.sharma", "password": "PriyaPass#2026$Duty"})
     token_p = res_p.json()["access_token"]
 
     # 2. Submit application
@@ -101,7 +101,7 @@ def test_personnel_apply_department_approve_and_sign():
     app_id = app_res.json()["application_id"]
 
     # 3. Department Head login
-    res_h = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "HeadWestern@2026"})
+    res_h = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "WestH3ad#2026$Transit"})
     token_h = res_h.json()["access_token"]
 
     # 4. Approve application
@@ -125,7 +125,7 @@ def test_department_isolation_and_idor():
     Ensures a Department Head cannot approve applications for another department.
     """
     # Head Western attempts to approve Northern application 'app-arvind-01'
-    res_h = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "HeadWestern@2026"})
+    res_h = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "WestH3ad#2026$Transit"})
     token_h = res_h.json()["access_token"]
 
     res_rogue = client.post("/api/passes/review", json={

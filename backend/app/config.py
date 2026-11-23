@@ -94,7 +94,7 @@ class Settings:
     
     # Initial / Default System Admin Bootstrap
     DEFAULT_ADMIN_USERNAME: str = os.getenv("SEVA_ADMIN_USER", "admin")
-    DEFAULT_ADMIN_PASSWORD: str = os.getenv("SEVA_ADMIN_PASS", "SevaAdmin@2026#Secure")
+    DEFAULT_ADMIN_PASSWORD: str = os.getenv("SEVA_ADMIN_PASS", "SevaAdm!n#2026$Drdo")
     DEFAULT_ADMIN_EMAIL: str = os.getenv("SEVA_ADMIN_EMAIL", "admin@sevapass.internal")
 
     def is_supabase_configured(self) -> bool:

@@ -342,7 +342,7 @@ def get_demo_accounts():
                 "role": "CENTRAL_ADMIN",
                 "username": "admin",
                 "email": "admin@sevapass.internal",
-                "password": "SevaAdmin@2026#Secure",
+                "password": "[Configured via SEVA_ADMIN_PASS env variable]",
                 "description": "Full platform administration, department creation, and system audit governance."
             },
             {
@@ -350,7 +350,7 @@ def get_demo_accounts():
                 "role": "DEPARTMENT_HEAD",
                 "username": "head.western",
                 "email": "head.western@sevapass.internal",
-                "password": "HeadWestern@2026",
+                "password": "WestH3ad#2026$Transit",
                 "description": "Reviews journey applications, signs passes using Ed25519, manages Western Command."
             },
             {
@@ -358,7 +358,7 @@ def get_demo_accounts():
                 "role": "DEPARTMENT_HEAD",
                 "username": "head.northern",
                 "email": "head.northern@sevapass.internal",
-                "password": "HeadNorthern@2026",
+                "password": "NorthH3ad#2026$Transit",
                 "description": "Reviews journey applications for Northern Command."
             },
             {
@@ -366,7 +366,7 @@ def get_demo_accounts():
                 "role": "PERSONNEL",
                 "username": "priya.sharma",
                 "email": "priya.sharma@sevapass.internal",
-                "password": "Member@2026",
+                "password": "PriyaPass#2026$Duty",
                 "description": "Holds active verified pass for Staff SUV 21D 104523X; can submit new applications."
             },
             {
@@ -374,8 +374,8 @@ def get_demo_accounts():
                 "role": "PERSONNEL",
                 "username": "arvind.deshmukh",
                 "email": "arvind.deshmukh@sevapass.internal",
-                "password": "Member@2026",
-                "description": "Has a pending pass application under Northern Command."
+                "password": "ArvindPass#2026$Duty",
+                "description": "Holds pending pass application under Northern Command."
             }
         ]
     }
