@@ -27,7 +27,7 @@ def seed_database():
     for s in services_data:
         cursor.execute("""
             INSERT OR IGNORE INTO services (id, code, name, description, is_active, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 1, ?, ?)
+            VALUES (?, ?, ?, ?, TRUE, ?, ?)
         """, (s["id"], s["code"], s["name"], s["desc"], now_iso, now_iso))
 
     # 2. Central Admin Account
@@ -38,7 +38,7 @@ def seed_database():
         (id, username, email, password_hash, full_name, service_category, service_number, rank,
          role, account_type, status, must_change_password, is_active, created_at, updated_at)
         VALUES (?, ?, ?, ?, 'Central Platform Administrator', 'Command', 'ADMIN-001', 'Chief Administrator',
-         'CENTRAL_ADMIN', 'central_admin', 'active', 0, 1, ?, ?)
+         'CENTRAL_ADMIN', 'central_admin', 'active', FALSE, TRUE, ?, ?)
     """, (
         admin_id,
         settings.DEFAULT_ADMIN_USERNAME,
@@ -92,7 +92,7 @@ def seed_database():
         cursor.execute("""
             INSERT OR IGNORE INTO departments
             (id, service_id, code, name, category, location, description, status, is_active, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 1, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'active', TRUE, ?, ?)
         """, (d["id"], d["service_id"], d["code"], d["name"], d["category"], d["location"], d["desc"], now_iso, now_iso))
 
     # 4. Personnel Officers
@@ -139,7 +139,7 @@ def seed_database():
             INSERT OR IGNORE INTO profiles
             (id, username, email, password_hash, full_name, service_category, service_number, rank, phone,
              role, account_type, assigned_department_id, status, must_change_password, is_active, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PERSONNEL', 'personnel', ?, 'active', 0, 1, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PERSONNEL', 'personnel', ?, 'active', FALSE, TRUE, ?, ?)
         """, (
             p["id"], p["username"], p["email"], hash_password(pw), p["name"],
             p["service_category"], p["service_number"], p["rank"], p["phone"],
@@ -175,7 +175,7 @@ def seed_database():
             (id, username, email, password_hash, full_name, service_category, service_number, rank,
              role, account_type, assigned_department_id, linked_personnel_id, status, must_change_password, is_active, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, 'Command', 'HEAD-AUTH', 'Department Head',
-             'DEPARTMENT_HEAD', 'department_head', ?, ?, 'active', 0, 1, ?, ?)
+             'DEPARTMENT_HEAD', 'department_head', ?, ?, 'active', FALSE, TRUE, ?, ?)
         """, (
             h["id"], h["username"], h["email"], h_pw_hash, h["name"],
             h["dept_id"], h["officer_id"], now_iso, now_iso

@@ -42,6 +42,7 @@ def adapt_sql_for_postgres(sql: str) -> str:
     - Translates parameter markers from '?' to '%s'.
     - Translates 'INSERT OR IGNORE INTO' to 'INSERT INTO ... ON CONFLICT DO NOTHING'.
     - Adapts boolean comparisons (is_active = 1/0, must_change_password = 1/0) to TRUE/FALSE.
+    - Defensively converts literal integer boolean values in VALUES clauses to PostgreSQL TRUE/FALSE.
     """
     cleaned = sql.strip()
     
@@ -50,11 +51,37 @@ def adapt_sql_for_postgres(sql: str) -> str:
         rest = cleaned[len("INSERT OR IGNORE INTO"):].strip()
         cleaned = f"INSERT INTO {rest} ON CONFLICT DO NOTHING"
 
-    # Adapt integer boolean literals to PostgreSQL native booleans (outside quotes)
+    # Adapt integer boolean comparisons to PostgreSQL native booleans (outside quotes)
     cleaned = re.sub(r'\bis_active\s*=\s*1\b', 'is_active = TRUE', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'\bis_active\s*=\s*0\b', 'is_active = FALSE', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'\bmust_change_password\s*=\s*1\b', 'must_change_password = TRUE', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'\bmust_change_password\s*=\s*0\b', 'must_change_password = FALSE', cleaned, flags=re.IGNORECASE)
+
+    # Defensive conversion of integer booleans in VALUES lists for services, departments, and profiles
+    cleaned = re.sub(
+        r'(\bINTO\s+(?:services|departments)\b[^)]*\bis_active\b[^)]*\)\s*VALUES\s*\([^)]*?),\s*1\s*,',
+        r'\1, TRUE,',
+        cleaned,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+    cleaned = re.sub(
+        r'(\bINTO\s+(?:services|departments)\b[^)]*\bis_active\b[^)]*\)\s*VALUES\s*\([^)]*?),\s*0\s*,',
+        r'\1, FALSE,',
+        cleaned,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+    cleaned = re.sub(
+        r'(\bINTO\s+profiles\b[^)]*\bmust_change_password\b[^)]*\bis_active\b[^)]*\)\s*VALUES\s*\([^)]*?),\s*0\s*,\s*1\s*,',
+        r'\1, FALSE, TRUE,',
+        cleaned,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+    cleaned = re.sub(
+        r'(\bINTO\s+profiles\b[^)]*\bmust_change_password\b[^)]*\bis_active\b[^)]*\)\s*VALUES\s*\([^)]*?),\s*1\s*,\s*1\s*,',
+        r'\1, TRUE, TRUE,',
+        cleaned,
+        flags=re.IGNORECASE | re.DOTALL
+    )
 
     return convert_placeholders(cleaned)
 
@@ -125,7 +152,7 @@ def get_db_connection():
        - Connects to local SQLite store (seva_pass.db) with foreign keys enabled.
     """
     is_prod = settings.ENVIRONMENT.lower() == "production"
-    is_pg_mode = settings.DB_MODE in ("supabase", "postgres") or bool(settings.DATABASE_URL)
+    is_pg_mode = settings.DB_MODE in ("supabase", "postgres")
 
     if is_prod:
         if settings.DB_MODE == "sqlite":
@@ -187,11 +214,11 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    is_pg = settings.is_postgres() and PSYCOPG2_AVAILABLE
+    is_pg = not isinstance(conn, sqlite3.Connection)
 
     # Column type mappings between SQLite and PostgreSQL
     bool_type = "BOOLEAN DEFAULT TRUE" if is_pg else "INTEGER DEFAULT 1"
-    timestamp_type = "TIMESTAMPTZ DEFAULT NOW()" if is_pg else "TEXT"
+    timestamp_type = "TIMESTAMPTZ DEFAULT NOW()" if is_pg else "TEXT DEFAULT CURRENT_TIMESTAMP"
     json_type = "JSONB" if is_pg else "TEXT"
 
     # 1. Services / Branches (Army, Navy, Air Force, Coast Guard)

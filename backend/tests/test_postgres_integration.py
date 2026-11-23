@@ -374,7 +374,7 @@ def test_live_postgres_or_reported_limitation():
     if settings.DATABASE_URL and PSYCOPG2_AVAILABLE:
         try:
             import psycopg2
-            conn = psycopg2.connect(settings.DATABASE_URL)
+            conn = psycopg2.connect(settings.DATABASE_URL, connect_timeout=3)
             cur = conn.cursor()
             cur.execute("SELECT 1;")
             result = cur.fetchone()

@@ -224,7 +224,7 @@ def register_personnel(req: PersonnelRegisterRequest, request: Request):
         INSERT INTO profiles
         (id, username, email, password_hash, full_name, service_category, service_number, rank, phone,
          role, account_type, assigned_department_id, status, must_change_password, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PERSONNEL', 'personnel', ?, 'active', 0, 1, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PERSONNEL', 'personnel', ?, 'active', FALSE, TRUE, ?, ?)
     """, (
         user_id,
         username,

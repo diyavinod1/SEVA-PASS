@@ -56,6 +56,12 @@ def test_sql_adapter_parameter_conversion():
     q2 = "INSERT OR IGNORE INTO services (id, code) VALUES (?, ?)"
     assert adapt_sql_for_postgres(q2) == "INSERT INTO services (id, code) VALUES (%s, %s) ON CONFLICT DO NOTHING"
 
+    # Defensive conversion of literal 1 in services/departments VALUES clause
+    q_svc = "INSERT OR IGNORE INTO services (id, code, name, description, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?)"
+    adapted_svc = adapt_sql_for_postgres(q_svc)
+    assert "TRUE" in adapted_svc
+    assert "1" not in adapted_svc.split("VALUES")[1].split(",")[4]
+
     # Preserves question marks inside string literals
     q3 = "SELECT * FROM t WHERE query = 'Is this valid?' AND status = ?"
     assert adapt_sql_for_postgres(q3) == "SELECT * FROM t WHERE query = 'Is this valid?' AND status = %s"

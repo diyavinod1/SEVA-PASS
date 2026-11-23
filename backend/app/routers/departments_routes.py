@@ -175,7 +175,7 @@ def create_department(
             (id, username, email, password_hash, full_name, service_category, service_number, rank,
              role, account_type, assigned_department_id, must_change_password, is_active, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, 'Command', 'DEPT-HEAD', 'Department Head',
-             'DEPARTMENT_HEAD', 'department_head', ?, 1, 1, ?, ?)
+             'DEPARTMENT_HEAD', 'department_head', ?, TRUE, TRUE, ?, ?)
         """, (head_account_id, h_username, h_email, pw_hash, f"Officer Commanding — {name}", dept_id, now_iso, now_iso))
 
         generated_credentials = {
@@ -187,7 +187,7 @@ def create_department(
     cursor.execute("""
         INSERT INTO departments
         (id, service_id, code, name, category, location, description, head_personnel_id, head_account_id, status, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?)
     """, (
         dept_id,
         req.service_id,
@@ -259,10 +259,10 @@ def update_department(
         fields.append("status = ?")
         values.append(req.status.strip())
         fields.append("is_active = ?")
-        values.append(1 if req.status.lower() == "active" else 0)
+        values.append(True if req.status.lower() == "active" else False)
     if req.is_active is not None:
         fields.append("is_active = ?")
-        values.append(1 if req.is_active else 0)
+        values.append(bool(req.is_active))
         fields.append("status = ?")
         values.append("active" if req.is_active else "inactive")
 
@@ -343,7 +343,7 @@ def assign_or_transfer_head(
         INSERT INTO profiles
         (id, username, email, password_hash, full_name, service_category, service_number, rank,
          role, account_type, assigned_department_id, linked_personnel_id, must_change_password, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'DEPARTMENT_HEAD', 'department_head', ?, ?, 1, 1, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'DEPARTMENT_HEAD', 'department_head', ?, ?, TRUE, TRUE, ?, ?)
     """, (
         new_head_acc_id,
         head_username,

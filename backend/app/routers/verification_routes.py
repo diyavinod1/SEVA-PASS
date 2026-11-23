@@ -87,7 +87,7 @@ def verify_pass_publicly(
             auth_v,
             result_status,
             message,
-            1 if checks["signature_valid"] else 0,
+            bool(checks.get("signature_valid", False)),
             now_iso
         ))
         conn.commit()
