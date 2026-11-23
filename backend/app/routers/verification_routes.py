@@ -269,6 +269,35 @@ def verify_pass_publicly(
             pass_code=pass_record["pass_code"]
         )
 
+    # Journey route exact matches
+    signed_origin = signed_fields.get("origin") or signed_fields.get("journey_origin")
+    if signed_origin and signed_origin != pass_record["journey_origin"]:
+        return record_and_return(
+            "INVALID",
+            f"Cryptographic integrity violation: signed journey origin ('{signed_origin}') does not match registry origin ('{pass_record['journey_origin']}').",
+            pass_id=pass_record["id"],
+            pass_code=pass_record["pass_code"]
+        )
+
+    signed_destination = signed_fields.get("destination") or signed_fields.get("journey_destination")
+    if signed_destination and signed_destination != pass_record["journey_destination"]:
+        return record_and_return(
+            "INVALID",
+            f"Cryptographic integrity violation: signed journey destination ('{signed_destination}') does not match registry destination ('{pass_record['journey_destination']}').",
+            pass_id=pass_record["id"],
+            pass_code=pass_record["pass_code"]
+        )
+
+    # Legal exemption basis exact match
+    signed_legal = signed_fields.get("legal_basis") or signed_fields.get("eligibility_basis")
+    if signed_legal and signed_legal != pass_record["eligibility_basis"]:
+        return record_and_return(
+            "INVALID",
+            f"Cryptographic integrity violation: signed legal basis ('{signed_legal}') does not match registry legal basis ('{pass_record['eligibility_basis']}').",
+            pass_id=pass_record["id"],
+            pass_code=pass_record["pass_code"]
+        )
+
     # Step 4: Check Revocation
     if pass_record["status"] == "revoked" or pass_record.get("revoked_at"):
         checks["not_revoked"] = False

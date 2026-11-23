@@ -162,6 +162,21 @@ def test_cryptographic_verification_tamper_and_unknown_key():
     r7 = client.post("/api/verification/verify-public", json={"pass_code": "SEVA-2026-WC-1045", "scanned_vehicle_reg": "KA 01 ZZ 9999"})
     assert r7.json()["result"] == "VEHICLE_MISMATCH"
 
+    # 8. Registry field divergence detection (altered journey origin)
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE issued_passes SET journey_origin = 'ALTERED_ORIGIN' WHERE pass_code = 'SEVA-2026-WC-1045'")
+    conn.commit()
+
+    r8 = client.post("/api/verification/verify-public", json={"pass_code": "SEVA-2026-WC-1045"})
+    assert r8.json()["result"] == "INVALID"
+    assert "integrity violation" in r8.json()["message"].lower()
+
+    # Restore original journey origin
+    cur.execute("UPDATE issued_passes SET journey_origin = 'Western Command HQ, Chandimandir' WHERE pass_code = 'SEVA-2026-WC-1045'")
+    conn.commit()
+    conn.close()
+
 # ==============================================================================
 # 4. DATABASE-ENFORCED AUDIT LOG APPEND-ONLY TESTS (POSTGRESQL LIVE)
 # ==============================================================================
@@ -169,6 +184,15 @@ def test_cryptographic_verification_tamper_and_unknown_key():
 def test_postgres_live_audit_log_append_only():
     conn = psycopg2.connect(settings.DATABASE_URL)
     cur = conn.cursor()
+
+    # Verify zero privileges granted to authenticated or anon
+    cur.execute("""
+        SELECT grantee, privilege_type 
+        FROM information_schema.role_table_grants 
+        WHERE table_name = 'audit_logs' AND grantee IN ('authenticated', 'anon');
+    """)
+    untrusted_grants = cur.fetchall()
+    assert len(untrusted_grants) == 0, f"Untrusted API roles should have 0 grants, found: {untrusted_grants}"
 
     test_id = f"test-audit-{uuid.uuid4().hex[:8]}"
     

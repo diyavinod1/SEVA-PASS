@@ -3,16 +3,19 @@
 -- File: supabase/migrations/03_audit_log_append_only.sql
 --
 -- PURPOSE:
--- Enforce database-level append-only guarantees on the public.audit_logs table.
--- Prevents UPDATE, DELETE, and TRUNCATE operations while preserving INSERT and SELECT.
+-- Enforce database-level append-only guarantees and strict least-privilege on public.audit_logs.
+-- Prevents UPDATE, DELETE, and TRUNCATE operations while preserving backend logging.
 --
--- SECURITY NOTES:
+-- SECURITY ARCHITECTURE:
 -- 1. Triggers execute BEFORE UPDATE OR DELETE FOR EACH ROW and BEFORE TRUNCATE FOR EACH STATEMENT.
--- 2. Privileges (UPDATE, DELETE, TRUNCATE) are revoked from anon, authenticated, and service_role.
--- 3. Superuser/Owner Limitation: A database superuser or table owner with ALTER TABLE privileges
---    can administratively disable triggers or alter table definitions. This protection guarantees
---    that standard DML operations, application connections, compromised API tokens, and standard
---    database roles CANNOT mutate, erase, or truncate historical audit records.
+-- 2. Direct API roles (anon, authenticated, PUBLIC) have ALL table privileges revoked.
+--    This prevents forged audit injection and unauthorized log reading via Supabase PostgREST.
+-- 3. Backend service_role is granted strictly least-privilege INSERT and SELECT.
+--    All UPDATE, DELETE, TRUNCATE, REFERENCES, and TRIGGER privileges are revoked.
+-- 4. Superuser/Owner Limitation: A database superuser or table owner with ALTER TABLE privileges
+--    can administratively disable triggers. This protection guarantees that standard DML operations,
+--    application connections, compromised API tokens, and standard database roles CANNOT mutate,
+--    erase, or truncate historical audit records.
 -- ============================================================================
 
 BEGIN;
@@ -40,14 +43,13 @@ BEFORE TRUNCATE ON public.audit_logs
 FOR EACH STATEMENT
 EXECUTE FUNCTION public.prevent_audit_logs_tampering();
 
--- 4. Revoke unnecessary privileges from application and API roles
-REVOKE UPDATE, DELETE, TRUNCATE ON public.audit_logs FROM anon;
-REVOKE UPDATE, DELETE, TRUNCATE ON public.audit_logs FROM authenticated;
-REVOKE UPDATE, DELETE, TRUNCATE ON public.audit_logs FROM service_role;
-REVOKE UPDATE, DELETE, TRUNCATE ON public.audit_logs FROM PUBLIC;
+-- 4. Revoke ALL table privileges from untrusted and client API roles
+REVOKE ALL ON public.audit_logs FROM anon;
+REVOKE ALL ON public.audit_logs FROM authenticated;
+REVOKE ALL ON public.audit_logs FROM PUBLIC;
 
--- 5. Guarantee INSERT and SELECT are explicitly permitted for application roles
+-- 5. Least-privilege grants strictly for trusted backend service_role
+REVOKE ALL ON public.audit_logs FROM service_role;
 GRANT INSERT, SELECT ON public.audit_logs TO service_role;
-GRANT INSERT, SELECT ON public.audit_logs TO authenticated;
 
 COMMIT;
