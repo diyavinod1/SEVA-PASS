@@ -31,12 +31,13 @@ app = FastAPI(
 )
 
 # Cross-Origin Resource Sharing
-# Allows configured CORS_ORIGINS as well as onrender.com companion web origins and local development hosts.
+# Production CORS is strictly locked down to explicit intended origins in settings.CORS_ORIGINS (no wildcard regex).
+# Development permits localhost and 127.0.0.1 loopback origins.
 is_prod = settings.ENVIRONMENT.lower() == "production"
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_origin_regex=r"^https?://([a-zA-Z0-9_-]+\.)*onrender\.com(:[0-9]+)?$" if is_prod else r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origin_regex=None if is_prod else r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

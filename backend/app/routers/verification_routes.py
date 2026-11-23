@@ -184,6 +184,43 @@ def verify_pass_publicly(
             pass_code=pass_record["pass_code"]
         )
 
+    # Step 3b: Verify that mutable database fields have not diverged from signed canonical payload
+    try:
+        signed_fields = json.loads(canonical_json)
+    except Exception:
+        signed_fields = {}
+
+    signed_vehicle = signed_fields.get("vehicle_reg") or signed_fields.get("vehicle_registration_number")
+    signed_valid_until = signed_fields.get("valid_until")
+    signed_code = signed_fields.get("pass_code")
+
+    if signed_code and signed_code.upper() != pass_record["pass_code"].upper():
+        return record_and_return(
+            "INVALID",
+            "Cryptographic integrity error: signed pass code does not match registered pass identifier.",
+            pass_id=pass_record["id"],
+            pass_code=pass_record["pass_code"]
+        )
+
+    if signed_vehicle:
+        clean_signed_v = signed_vehicle.strip().upper().replace(" ", "").replace("-", "")
+        clean_db_v = pass_record["vehicle_registration_number"].strip().upper().replace(" ", "").replace("-", "")
+        if clean_signed_v != clean_db_v:
+            return record_and_return(
+                "INVALID",
+                "Integrity mismatch: vehicle registration in registry diverges from cryptographically signed payload.",
+                pass_id=pass_record["id"],
+                pass_code=pass_record["pass_code"]
+            )
+
+    if signed_valid_until and signed_valid_until != pass_record["valid_until"]:
+        return record_and_return(
+            "INVALID",
+            "Integrity mismatch: validity window in registry diverges from cryptographically signed payload.",
+            pass_id=pass_record["id"],
+            pass_code=pass_record["pass_code"]
+        )
+
     # Step 4: Check Revocation
     if pass_record["status"] == "revoked" or pass_record.get("revoked_at"):
         checks["not_revoked"] = False

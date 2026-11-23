@@ -526,7 +526,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
                       Vehicle Mismatch Simulation
                     </span>
                     <span className="text-[11px] text-amber-700">
-                      Tests optical plate cross-matching discrepancy
+                      Tests observed lane vehicle plate cross-matching discrepancy
                     </span>
                   </div>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-200 text-amber-800">

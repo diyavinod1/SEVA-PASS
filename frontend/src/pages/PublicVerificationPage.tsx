@@ -228,7 +228,7 @@ export const PublicVerificationPage: React.FC<PublicVerificationPageProps> = ({
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs bg-[#14243A] text-white hover:bg-[#0C1728] transition-colors shadow-xs shrink-0"
           >
             <Camera className="w-4 h-4 text-[#B99A62]" />
-            <span>Open Optical Scanner</span>
+            <span>Open QR Camera Scanner</span>
           </button>
         </div>
 

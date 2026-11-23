@@ -49,6 +49,7 @@ def get_public_active_departments():
     conn.close()
     return [{"id": r["id"], "code": r["code"], "name": r["name"], "category": r["category"], "location": r["location"], "service_name": r["service_name"]} for r in rows]
 
+@router.get("", include_in_schema=False)
 @router.get("/")
 def list_departments(current_user: Dict[str, Any] = Depends(require_admin)):
     """
@@ -133,6 +134,7 @@ def get_department_details(
     conn.close()
     return {"department": dict(dept), "recent_activity": recent_activity}
 
+@router.post("", include_in_schema=False)
 @router.post("/")
 def create_department(
     req: DepartmentCreate,
@@ -157,11 +159,30 @@ def create_department(
     head_account_id = None
     generated_credentials = None
 
-    # If head assignment requested in same step
+    # Step 1: Insert department record first with NULL head references to satisfy foreign-key constraints
+    cursor.execute("""
+        INSERT INTO departments
+        (id, service_id, code, name, category, location, description, head_personnel_id, head_account_id, status, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, TRUE, ?, ?)
+    """, (
+        dept_id,
+        req.service_id,
+        code,
+        name,
+        req.category or "Command",
+        req.location or "",
+        req.description or "",
+        req.status or "active",
+        now_iso,
+        now_iso
+    ))
+
+    # Step 2: If head assignment requested, insert profile with assigned_department_id = dept_id
     if req.head_username:
         h_username = req.head_username.strip().lower()
         cursor.execute("SELECT id FROM profiles WHERE LOWER(username) = ?", (h_username,))
         if cursor.fetchone():
+            conn.rollback()
             conn.close()
             raise HTTPException(status_code=400, detail=f"Head username '{h_username}' is already in use.")
 
@@ -178,30 +199,21 @@ def create_department(
              'DEPARTMENT_HEAD', 'department_head', ?, TRUE, TRUE, ?, ?)
         """, (head_account_id, h_username, h_email, pw_hash, f"Officer Commanding — {name}", dept_id, now_iso, now_iso))
 
+        # Step 3: Link head_account_id back to departments
+        cursor.execute("""
+            UPDATE departments SET head_account_id = ?, updated_at = ? WHERE id = ?
+        """, (head_account_id, now_iso, dept_id))
+
         generated_credentials = {
             "username": h_username,
             "temporary_password": temp_password,
             "must_change_on_first_login": True
         }
 
-    cursor.execute("""
-        INSERT INTO departments
-        (id, service_id, code, name, category, location, description, head_personnel_id, head_account_id, status, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?)
-    """, (
-        dept_id,
-        req.service_id,
-        code,
-        name,
-        req.category or "Command",
-        req.location or "",
-        req.description or "",
-        req.head_personnel_id,
-        head_account_id,
-        req.status or "active",
-        now_iso,
-        now_iso
-    ))
+    # Step 4: If existing personnel head assigned, link head_personnel_id
+    if req.head_personnel_id:
+        cursor.execute("UPDATE departments SET head_personnel_id = ?, updated_at = ? WHERE id = ?", (req.head_personnel_id, now_iso, dept_id))
+
     conn.commit()
     conn.close()
 

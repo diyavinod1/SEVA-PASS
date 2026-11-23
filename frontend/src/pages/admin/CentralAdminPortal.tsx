@@ -1001,7 +1001,7 @@ export const CentralAdminPortal: React.FC<CentralAdminPortalProps> = ({ currentU
                 Toll Plaza Verification Activity ({verificationLogs.length})
               </h3>
               <p className="text-xs text-[#64748B]">
-                Real-time scanning events from optical lane cameras and web terminals.
+                Real-time scanning events from QR scanners, camera uploads, and web terminals.
               </p>
             </div>
 
