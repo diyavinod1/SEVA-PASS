@@ -147,75 +147,107 @@ def create_department(
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Prevent duplicate department code
-    cursor.execute("SELECT id FROM departments WHERE UPPER(code) = ?", (code,))
-    if cursor.fetchone():
-        conn.close()
-        raise HTTPException(status_code=400, detail=f"Department code '{code}' already exists. Department codes must be unique.")
-
     dept_id = str(uuid.uuid4())
     now_iso = datetime.now(timezone.utc).isoformat()
-
     head_account_id = None
     generated_credentials = None
 
-    # Step 1: Insert department record first with NULL head references to satisfy foreign-key constraints
-    cursor.execute("""
-        INSERT INTO departments
-        (id, service_id, code, name, category, location, description, head_personnel_id, head_account_id, status, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, TRUE, ?, ?)
-    """, (
-        dept_id,
-        req.service_id,
-        code,
-        name,
-        req.category or "Command",
-        req.location or "",
-        req.description or "",
-        req.status or "active",
-        now_iso,
-        now_iso
-    ))
-
-    # Step 2: If head assignment requested, insert profile with assigned_department_id = dept_id
-    if req.head_username:
-        h_username = req.head_username.strip().lower()
-        cursor.execute("SELECT id FROM profiles WHERE LOWER(username) = ?", (h_username,))
+    try:
+        # Step 0a: Prevent duplicate department code
+        cursor.execute("SELECT id FROM departments WHERE UPPER(code) = ?", (code,))
         if cursor.fetchone():
-            conn.rollback()
-            conn.close()
-            raise HTTPException(status_code=400, detail=f"Head username '{h_username}' is already in use.")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Department code '{code}' already exists. Department codes must be unique."
+            )
 
-        temp_password = req.head_temporary_password or generate_strong_temp_password()
-        head_account_id = str(uuid.uuid4())
-        h_email = f"{h_username}@sevapass.internal"
-        pw_hash = hash_password(temp_password)
+        # Step 0b: Validate service_id existence to prevent foreign-key failure
+        cursor.execute("SELECT id FROM services WHERE id = ? AND is_active = TRUE", (req.service_id,))
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid service_id '{req.service_id}'. Specified military service branch does not exist."
+            )
 
+        # Step 0c: If head username is requested, check uniqueness before mutating anything
+        if req.head_username:
+            h_username = req.head_username.strip().lower()
+            cursor.execute("SELECT id FROM profiles WHERE LOWER(username) = ?", (h_username,))
+            if cursor.fetchone():
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Head username '{h_username}' is already in use."
+                )
+
+        # Step 0d: If existing personnel head assigned, validate existence
+        if req.head_personnel_id:
+            cursor.execute("SELECT id FROM profiles WHERE id = ? AND is_active = TRUE", (req.head_personnel_id,))
+            if not cursor.fetchone():
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid head_personnel_id '{req.head_personnel_id}'. Specified personnel profile does not exist."
+                )
+
+        # Step 1: Insert department record first with NULL head references to satisfy foreign-key constraints
         cursor.execute("""
-            INSERT INTO profiles
-            (id, username, email, password_hash, full_name, service_category, service_number, rank,
-             role, account_type, assigned_department_id, must_change_password, is_active, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, 'Command', 'DEPT-HEAD', 'Department Head',
-             'DEPARTMENT_HEAD', 'department_head', ?, TRUE, TRUE, ?, ?)
-        """, (head_account_id, h_username, h_email, pw_hash, f"Officer Commanding — {name}", dept_id, now_iso, now_iso))
+            INSERT INTO departments
+            (id, service_id, code, name, category, location, description, head_personnel_id, head_account_id, status, is_active, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, TRUE, ?, ?)
+        """, (
+            dept_id,
+            req.service_id,
+            code,
+            name,
+            req.category or "Command",
+            req.location or "",
+            req.description or "",
+            req.status or "active",
+            now_iso,
+            now_iso
+        ))
 
-        # Step 3: Link head_account_id back to departments
-        cursor.execute("""
-            UPDATE departments SET head_account_id = ?, updated_at = ? WHERE id = ?
-        """, (head_account_id, now_iso, dept_id))
+        # Step 2: If head assignment requested, insert profile with assigned_department_id = dept_id
+        if req.head_username:
+            temp_password = req.head_temporary_password or generate_strong_temp_password()
+            head_account_id = str(uuid.uuid4())
+            h_email = f"{h_username}@sevapass.internal"
+            pw_hash = hash_password(temp_password)
 
-        generated_credentials = {
-            "username": h_username,
-            "temporary_password": temp_password,
-            "must_change_on_first_login": True
-        }
+            cursor.execute("""
+                INSERT INTO profiles
+                (id, username, email, password_hash, full_name, service_category, service_number, rank,
+                 role, account_type, assigned_department_id, must_change_password, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 'Command', 'DEPT-HEAD', 'Department Head',
+                 'DEPARTMENT_HEAD', 'department_head', ?, TRUE, TRUE, ?, ?)
+            """, (head_account_id, h_username, h_email, pw_hash, f"Officer Commanding — {name}", dept_id, now_iso, now_iso))
 
-    # Step 4: If existing personnel head assigned, link head_personnel_id
-    if req.head_personnel_id:
-        cursor.execute("UPDATE departments SET head_personnel_id = ?, updated_at = ? WHERE id = ?", (req.head_personnel_id, now_iso, dept_id))
+            # Step 3: Link head_account_id back to departments
+            cursor.execute("""
+                UPDATE departments SET head_account_id = ?, updated_at = ? WHERE id = ?
+            """, (head_account_id, now_iso, dept_id))
 
-    conn.commit()
-    conn.close()
+            generated_credentials = {
+                "username": h_username,
+                "temporary_password": temp_password,
+                "must_change_on_first_login": True
+            }
+
+        # Step 4: If existing personnel head assigned, link head_personnel_id
+        if req.head_personnel_id:
+            cursor.execute("UPDATE departments SET head_personnel_id = ?, updated_at = ? WHERE id = ?", (req.head_personnel_id, now_iso, dept_id))
+
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Transactional department provisioning failed: {str(exc)}. All operations safely rolled back."
+        )
+    finally:
+        conn.close()
 
     log_audit(
         event_type="DEPARTMENT_CREATED",

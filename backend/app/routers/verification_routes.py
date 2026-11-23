@@ -162,16 +162,46 @@ def verify_pass_publicly(
     pass_record = dict(row)
     checks["pass_found"] = True
 
-    # Step 3: Verify Ed25519 signature
+    # Step 3a: Check Signing Key Identifier
+    if embedded_credential and isinstance(embedded_credential, dict):
+        cred_key_id = embedded_credential.get("key_id")
+        if cred_key_id and cred_key_id != pass_record["key_id"]:
+            return record_and_return(
+                "INVALID",
+                f"Untrusted cryptographic authority: credential key_id '{cred_key_id}' does not match registered signing key '{pass_record['key_id']}'.",
+                pass_id=pass_record["id"],
+                pass_code=pass_record["pass_code"]
+            )
+
+    # Step 3b: Verify Ed25519 signature
     sig_to_verify = pass_record["signature_hex"]
     canonical_json = pass_record["canonical_payload_json"]
 
-    # If the scanned QR contained a tampered signature or modified payload
+    # If the scanned QR contained an embedded verifiable credential
     if embedded_credential and isinstance(embedded_credential, dict):
         if "signature" in embedded_credential:
             sig_to_verify = embedded_credential["signature"]
         if "payload" in embedded_credential:
             canonical_json = signer.canonicalize_payload(embedded_credential["payload"])
+
+    # Strict signature encoding validation (must be 128 hex chars / 64 bytes)
+    if not isinstance(sig_to_verify, str) or len(sig_to_verify) != 128:
+        return record_and_return(
+            "INVALID",
+            "Malformed signature encoding: Ed25519 signature must be exactly 128 hexadecimal characters (64 bytes).",
+            pass_id=pass_record["id"],
+            pass_code=pass_record["pass_code"]
+        )
+
+    try:
+        bytes.fromhex(sig_to_verify)
+    except ValueError:
+        return record_and_return(
+            "INVALID",
+            "Malformed signature encoding: signature is not valid hexadecimal representation.",
+            pass_id=pass_record["id"],
+            pass_code=pass_record["pass_code"]
+        )
 
     is_sig_valid = signer.verify_payload_signature(canonical_json, sig_to_verify)
     checks["signature_valid"] = is_sig_valid
@@ -184,39 +214,57 @@ def verify_pass_publicly(
             pass_code=pass_record["pass_code"]
         )
 
-    # Step 3b: Verify that mutable database fields have not diverged from signed canonical payload
+    # Step 3c: Strict 1-to-1 matching of signed canonical payload against authoritative registry fields
     try:
         signed_fields = json.loads(canonical_json)
     except Exception:
         signed_fields = {}
 
-    signed_vehicle = signed_fields.get("vehicle_reg") or signed_fields.get("vehicle_registration_number")
-    signed_valid_until = signed_fields.get("valid_until")
+    # Pass identifier exact match
     signed_code = signed_fields.get("pass_code")
-
-    if signed_code and signed_code.upper() != pass_record["pass_code"].upper():
+    if not signed_code or signed_code != pass_record["pass_code"]:
         return record_and_return(
             "INVALID",
-            "Cryptographic integrity error: signed pass code does not match registered pass identifier.",
+            f"Cryptographic integrity violation: signed pass_code ('{signed_code}') does not match registry pass_code ('{pass_record['pass_code']}').",
             pass_id=pass_record["id"],
             pass_code=pass_record["pass_code"]
         )
 
-    if signed_vehicle:
-        clean_signed_v = signed_vehicle.strip().upper().replace(" ", "").replace("-", "")
-        clean_db_v = pass_record["vehicle_registration_number"].strip().upper().replace(" ", "").replace("-", "")
-        if clean_signed_v != clean_db_v:
-            return record_and_return(
-                "INVALID",
-                "Integrity mismatch: vehicle registration in registry diverges from cryptographically signed payload.",
-                pass_id=pass_record["id"],
-                pass_code=pass_record["pass_code"]
-            )
-
-    if signed_valid_until and signed_valid_until != pass_record["valid_until"]:
+    # Department code exact match
+    signed_dept = signed_fields.get("dept_code") or signed_fields.get("department_code")
+    if signed_dept and signed_dept != pass_record["department_code"]:
         return record_and_return(
             "INVALID",
-            "Integrity mismatch: validity window in registry diverges from cryptographically signed payload.",
+            f"Cryptographic integrity violation: signed department_code ('{signed_dept}') does not match registry department_code ('{pass_record['department_code']}').",
+            pass_id=pass_record["id"],
+            pass_code=pass_record["pass_code"]
+        )
+
+    # Vehicle registration exact match (no silent normalization between signed payload and database)
+    signed_vehicle = signed_fields.get("vehicle_reg") or signed_fields.get("vehicle_registration_number")
+    if not signed_vehicle or signed_vehicle != pass_record["vehicle_registration_number"]:
+        return record_and_return(
+            "INVALID",
+            f"Cryptographic integrity violation: signed vehicle_reg ('{signed_vehicle}') does not match registry vehicle ('{pass_record['vehicle_registration_number']}').",
+            pass_id=pass_record["id"],
+            pass_code=pass_record["pass_code"]
+        )
+
+    # Validity window exact matches
+    signed_valid_from = signed_fields.get("valid_from")
+    if signed_valid_from and signed_valid_from != pass_record["valid_from"]:
+        return record_and_return(
+            "INVALID",
+            f"Cryptographic integrity violation: signed valid_from ('{signed_valid_from}') does not match registry valid_from ('{pass_record['valid_from']}').",
+            pass_id=pass_record["id"],
+            pass_code=pass_record["pass_code"]
+        )
+
+    signed_valid_until = signed_fields.get("valid_until")
+    if not signed_valid_until or signed_valid_until != pass_record["valid_until"]:
+        return record_and_return(
+            "INVALID",
+            f"Cryptographic integrity violation: signed valid_until ('{signed_valid_until}') does not match registry valid_until ('{pass_record['valid_until']}').",
             pass_id=pass_record["id"],
             pass_code=pass_record["pass_code"]
         )

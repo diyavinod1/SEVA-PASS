@@ -1,7 +1,9 @@
+from typing import Dict, Any
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from app.auth import require_admin
 from app.seed import seed_database
 from app.supabase_client import supabase_client
 from app.routers import (
@@ -55,33 +57,23 @@ app.include_router(audit_routes.router)
 def root_endpoint():
     return {
         "service": "SEVA PASS Digital Service Gateway",
-        "description": "Secure Electronic Verification and Authorisation for Military Toll Exemptions",
-        "status": "operational",
-        "version": settings.VERSION,
-        "docs": "/docs",
-        "health": "/api/health",
-        "config_status": "/api/config/status"
+        "status": "operational"
     }
 
 @app.get("/api/health")
 def health_check():
-    env_status = settings.get_environment_status()
+    """Minimal, unauthenticated public health check for service monitoring."""
     return {
         "status": "operational",
-        "service": settings.PROJECT_NAME,
-        "version": settings.VERSION,
-        "cryptography": "Ed25519 (RFC 8032)",
-        "key_id": settings.KEY_ID,
-        "database_engine": env_status["database_mode"],
-        "supabase_configured": env_status["supabase"]["configured"]
+        "service": settings.PROJECT_NAME
     }
 
 @app.get("/api/config/status")
-def config_status():
-    """Returns safe, audit-compliant environment configuration status without secret leakage."""
+def config_status(current_user: Dict[str, Any] = Depends(require_admin)):
+    """Returns safe environment configuration status. Restricted strictly to CENTRAL_ADMIN."""
     return settings.get_environment_status()
 
 @app.get("/api/supabase/status")
-async def supabase_live_status():
-    """Live connectivity check against configured Supabase project."""
+async def supabase_live_status(current_user: Dict[str, Any] = Depends(require_admin)):
+    """Live connectivity check against configured Supabase project. Restricted strictly to CENTRAL_ADMIN."""
     return await supabase_client.check_connection()
