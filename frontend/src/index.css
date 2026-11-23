@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #F7F7F3;
+    color: #14243A;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Print specific styles for digital pass printing */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .pass-print-card {
+    border: 1px solid #14243A !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+}
+
+/* Optical QR Video Container */
+#seva-dedicated-qr-container {
+  width: 100% !important;
+  min-height: 280px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  border-radius: 0.75rem !important;
+  background-color: #020617 !important;
+}
+
+#seva-dedicated-qr-container video {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 320px !important;
+  object-fit: cover !important;
+  border-radius: 0.75rem !important;
+}
+
+#seva-dedicated-qr-container__scan_region {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+

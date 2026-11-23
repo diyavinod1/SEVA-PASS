@@ -1,0 +1,32 @@
+# ==============================================================================
+# SEVA PASS Backend .gitignore
+# ==============================================================================
+
+# Environment files
+.env
+.env.*
+!.env.example
+*.local
+
+# Database and cryptographic private keys
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.pem
+*.key
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+venv/
+.venv/
+env/
+
+# System & IDE
+.DS_Store
+.vscode/
+.idea/
