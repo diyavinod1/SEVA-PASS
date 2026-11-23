@@ -33,7 +33,7 @@ services:
       - key: KEY_ID
         value: seva-ed25519-v1
 
-      # Supabase Configuration
+      # Supabase credentials
       - key: SUPABASE_URL
         sync: false
 
@@ -46,20 +46,21 @@ services:
       - key: DATABASE_URL
         sync: false
 
-      # Ed25519 Signing Key
+      # Ed25519 signing key
       - key: ED25519_PRIVATE_KEY_HEX
         sync: false
 
-      # JWT Secret
+      # JWT secret
       - key: JWT_SECRET
         generateValue: true
 
-      # Frontend URL for CORS
+      # Frontend origin for CORS
       - key: CORS_ORIGINS
-        fromService:
-          type: web
-          name: seva-pass-ui
-          property: url
+        value: https://seva-pass-ui.onrender.com
+
+      # Administrator password
+      - key: SEVA_ADMIN_PASS
+        sync: false
 
   # ----------------------------------------------------------------------------
   # 2. React + Vite Frontend
@@ -75,21 +76,18 @@ services:
     plan: free
     autoDeploy: false
 
-    # React SPA Routing
+    # React SPA routing
     routes:
       - type: rewrite
         source: /*
         destination: /index.html
 
     envVars:
-      # Backend API URL
+      # FastAPI backend URL
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: seva-pass-api
-          property: url
+        value: https://seva-pass-api.onrender.com
 
-      # Public Supabase Configuration
+      # Public Supabase configuration
       - key: VITE_SUPABASE_URL
         sync: false
 
