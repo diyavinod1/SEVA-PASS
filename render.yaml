@@ -1,24 +1,17 @@
 
 # ==============================================================================
 # SEVA PASS — Render Blueprint
-# Services:
-#   1. seva-pass-api: FastAPI Backend
-#   2. seva-pass-ui: React + Vite Static Frontend
 # ==============================================================================
 
 services:
 
-  # ----------------------------------------------------------------------------
   # 1. FastAPI Backend
-  # ----------------------------------------------------------------------------
   - type: web
     name: seva-pass-api
     runtime: python
     rootDir: backend
-
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-
     healthCheckPath: /api/health
     plan: free
     autoDeploy: false
@@ -26,27 +19,22 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: production
-
       - key: DB_MODE
         value: supabase
-
       - key: KEY_ID
         value: seva-ed25519-v1
 
       # Supabase credentials
       - key: SUPABASE_URL
         sync: false
-
       - key: SUPABASE_ANON_KEY
         sync: false
-
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-
       - key: DATABASE_URL
         sync: false
 
-      # Ed25519 signing key
+      # Cryptographic signing key
       - key: ED25519_PRIVATE_KEY_HEX
         sync: false
 
@@ -54,7 +42,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
 
-      # Frontend origin for CORS
+      # Frontend CORS origin
       - key: CORS_ORIGINS
         value: https://seva-pass-ui.onrender.com
 
@@ -62,32 +50,24 @@ services:
       - key: SEVA_ADMIN_PASS
         sync: false
 
-  # ----------------------------------------------------------------------------
-  # 2. React + Vite Frontend
-  # ----------------------------------------------------------------------------
+  # 2. React + Vite Static Frontend
   - type: web
     name: seva-pass-ui
     runtime: static
     rootDir: frontend
-
     buildCommand: npm install && npm run build
     staticPublishPath: dist
-
-    plan: free
     autoDeploy: false
 
-    # React SPA routing
     routes:
       - type: rewrite
         source: /*
         destination: /index.html
 
     envVars:
-      # FastAPI backend URL
       - key: VITE_API_URL
         value: https://seva-pass-api.onrender.com
 
-      # Public Supabase configuration
       - key: VITE_SUPABASE_URL
         sync: false
 
