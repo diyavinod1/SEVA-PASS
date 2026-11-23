@@ -1,76 +1,97 @@
+
 # ==============================================================================
-# SEVA PASS — Render Infrastructure as Code Blueprint (render.yaml)
-# Production Deployment Architecture:
-#   1. seva-pass-api: FastAPI Web Service (Python)
-#   2. seva-pass-ui:  React + Vite Static Site (TypeScript / Tailwind)
+# SEVA PASS — Render Blueprint
+# Services:
+#   1. seva-pass-api: FastAPI Backend
+#   2. seva-pass-ui: React + Vite Static Frontend
 # ==============================================================================
 
 services:
+
   # ----------------------------------------------------------------------------
-  # 1. FastAPI Cryptographic Backend Web Service
+  # 1. FastAPI Backend
   # ----------------------------------------------------------------------------
   - type: web
     name: seva-pass-api
     runtime: python
     rootDir: backend
+
     buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
     healthCheckPath: /api/health
     plan: free
     autoDeploy: false
+
     envVars:
       - key: ENVIRONMENT
         value: production
+
       - key: DB_MODE
         value: supabase
+
       - key: KEY_ID
         value: seva-ed25519-v1
-      # Supabase Project Credentials (Enter values securely in Render Dashboard)
+
+      # Supabase Configuration
       - key: SUPABASE_URL
         sync: false
+
       - key: SUPABASE_ANON_KEY
         sync: false
+
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+
       - key: DATABASE_URL
         sync: false
-      # Cryptographic Authority Private Key (Persistent Ed25519)
+
+      # Ed25519 Signing Key
       - key: ED25519_PRIVATE_KEY_HEX
         sync: false
-      # JWT Session Secret
+
+      # JWT Secret
       - key: JWT_SECRET
         generateValue: true
-      # Allowed Origins (Automatically bound to the frontend static site URL)
+
+      # Frontend URL for CORS
       - key: CORS_ORIGINS
         fromService:
-          type: static
+          type: web
           name: seva-pass-ui
           property: url
 
   # ----------------------------------------------------------------------------
-  # 2. React + Vite Frontend Static Site
+  # 2. React + Vite Frontend
   # ----------------------------------------------------------------------------
-  - type: static
+  - type: web
     name: seva-pass-ui
+    runtime: static
     rootDir: frontend
+
     buildCommand: npm install && npm run build
     staticPublishPath: dist
+
     plan: free
     autoDeploy: false
+
+    # React SPA Routing
     routes:
-      # Single Page Application (SPA) Client-Side Routing
       - type: rewrite
         source: /*
         destination: /index.html
+
     envVars:
-      # Dynamic API binding to the deployed backend service
+      # Backend API URL
       - key: VITE_API_URL
         fromService:
           type: web
           name: seva-pass-api
           property: url
-      # Public Supabase Client Config (Client-safe only)
+
+      # Public Supabase Configuration
       - key: VITE_SUPABASE_URL
         sync: false
+
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
