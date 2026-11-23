@@ -268,3 +268,74 @@ def test_central_admin_metrics():
     assert metrics["total_personnel"] >= 3
     assert metrics["total_applications"] >= 4
     assert len(data["department_stats"]) >= 4
+    assert "security_info" in data
+    assert data["security_info"]["algorithm"] == "Ed25519 (RFC 8032 / FIPS 186-5)"
+
+# 10. Central Admin Personnel Governance Endpoints & RBAC
+def test_central_admin_personnel_governance():
+    res_admin = client.post("/api/auth/login", json={"username_or_email": "admin", "password": "SevaAdm!n#2026$Drdo"})
+    admin_headers = {"Authorization": f"Bearer {res_admin.json()['access_token']}"}
+
+    # 1. List all users
+    res_users = client.get("/api/auth/users", headers=admin_headers)
+    assert res_users.status_code == 200, res_users.text
+    user_list = res_users.json()["users"]
+    assert len(user_list) >= 4
+    for u in user_list:
+        assert "password_hash" not in u
+        assert "username" in u
+        assert "role" in u
+
+    # 2. Update user status (deactivate)
+    target_user = next(u for u in user_list if u["username"] == "priya.sharma")
+    res_deact = client.patch(
+        f"/api/auth/users/{target_user['id']}/status",
+        json={"is_active": False, "status": "suspended"},
+        headers=admin_headers
+    )
+    assert res_deact.status_code == 200
+
+    # Verify deactivated user cannot log in
+    res_login_blocked = client.post("/api/auth/login", json={
+        "username_or_email": "priya.sharma",
+        "password": "PriyaPass#2026$Duty"
+    })
+    assert res_login_blocked.status_code == 403
+
+    # Reactivate user
+    res_react = client.patch(
+        f"/api/auth/users/{target_user['id']}/status",
+        json={"is_active": True, "status": "active"},
+        headers=admin_headers
+    )
+    assert res_react.status_code == 200
+
+    # 3. Non-admin forbidden from listing users
+    res_pers = client.post("/api/auth/login", json={"username_or_email": "priya.sharma", "password": "PriyaPass#2026$Duty"})
+    pers_headers = {"Authorization": f"Bearer {res_pers.json()['access_token']}"}
+    res_forbidden = client.get("/api/auth/users", headers=pers_headers)
+    assert res_forbidden.status_code == 403
+
+# 11. Department and Admin Applications JOIN Resolution
+def test_applications_join_and_visibility():
+    # Department Head view
+    res_head = client.post("/api/auth/login", json={"username_or_email": "head.western", "password": "WestH3ad#2026$Transit"})
+    head_headers = {"Authorization": f"Bearer {res_head.json()['access_token']}"}
+
+    res_dept_apps = client.get("/api/passes/department-applications", headers=head_headers)
+    assert res_dept_apps.status_code == 200, res_dept_apps.text
+    dept_apps = res_dept_apps.json()["applications"]
+    assert len(dept_apps) >= 1
+    # Verify left-joined fields exist
+    assert "issued_pass_id" in dept_apps[0]
+    assert "pass_code" in dept_apps[0]
+
+    # Central Admin view
+    res_admin = client.post("/api/auth/login", json={"username_or_email": "admin", "password": "SevaAdm!n#2026$Drdo"})
+    admin_headers = {"Authorization": f"Bearer {res_admin.json()['access_token']}"}
+    res_all_apps = client.get("/api/passes/all-applications", headers=admin_headers)
+    assert res_all_apps.status_code == 200, res_all_apps.text
+    all_apps = res_all_apps.json()["applications"]
+    assert len(all_apps) >= 1
+    assert "issued_pass_id" in all_apps[0]
+

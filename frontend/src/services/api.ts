@@ -11,7 +11,21 @@ import {
   DemoAccount
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const resolveApiBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    const { hostname } = window.location;
+    if (hostname.includes('onrender.com')) {
+      return 'https://seva-pass-api.onrender.com';
+    }
+  }
+  return 'http://127.0.0.1:8000';
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 const TOKEN_KEY = 'sevapass_auth_token';
 
 export const getAuthToken = (): string | null => {
@@ -92,6 +106,30 @@ export const api = {
     return request<{ status: string; notice: string; accounts: DemoAccount[] }>('/api/auth/demo-accounts');
   },
 
+  getUsers: (params: { department_id?: string; role?: string; search?: string; status_filter?: string } = {}): Promise<{ users: UserProfile[]; total: number }> => {
+    const query = new URLSearchParams();
+    if (params.department_id) query.append('department_id', params.department_id);
+    if (params.role) query.append('role', params.role);
+    if (params.search) query.append('search', params.search);
+    if (params.status_filter) query.append('status_filter', params.status_filter);
+    const qStr = query.toString() ? `?${query.toString()}` : '';
+    return request<{ users: UserProfile[]; total: number }>(`/api/auth/users${qStr}`);
+  },
+
+  updateUserStatus: (userId: string, data: { status?: string; is_active?: boolean }): Promise<{ status: string; message: string }> => {
+    return request<{ status: string; message: string }>(`/api/auth/users/${userId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  },
+
+  updateUserRole: (userId: string, data: { role: string; assigned_department_id?: string; account_type?: string }): Promise<{ status: string; message: string }> => {
+    return request<{ status: string; message: string }>(`/api/auth/users/${userId}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  },
+
   // Departments
   getPublicDepartments: (): Promise<Array<{ id: string; code: string; name: string; category: string; location?: string; service_name: string }>> => {
     return request<Array<{ id: string; code: string; name: string; category: string; location?: string; service_name: string }>>('/api/departments/public');
@@ -170,13 +208,31 @@ export const api = {
     });
   },
 
-  getAllApplications: (statusFilter?: string): Promise<{ applications: PassApplication[] }> => {
-    const q = statusFilter ? `?status_filter=${encodeURIComponent(statusFilter)}` : '';
+  getAllApplications: (params?: { statusFilter?: string; department_id?: string; start_date?: string; end_date?: string } | string): Promise<{ applications: PassApplication[] }> => {
+    const query = new URLSearchParams();
+    if (typeof params === 'string') {
+      if (params) query.append('status_filter', params);
+    } else if (params) {
+      if (params.statusFilter) query.append('status_filter', params.statusFilter);
+      if (params.department_id) query.append('department_id', params.department_id);
+      if (params.start_date) query.append('start_date', params.start_date);
+      if (params.end_date) query.append('end_date', params.end_date);
+    }
+    const q = query.toString() ? `?${query.toString()}` : '';
     return request<{ applications: PassApplication[] }>(`/api/passes/all-applications${q}`);
   },
 
-  getAllIssuedPasses: (statusFilter?: string): Promise<{ passes: IssuedPass[] }> => {
-    const q = statusFilter ? `?status_filter=${encodeURIComponent(statusFilter)}` : '';
+  getAllIssuedPasses: (params?: { statusFilter?: string; department_id?: string; start_date?: string; end_date?: string } | string): Promise<{ passes: IssuedPass[] }> => {
+    const query = new URLSearchParams();
+    if (typeof params === 'string') {
+      if (params) query.append('status_filter', params);
+    } else if (params) {
+      if (params.statusFilter) query.append('status_filter', params.statusFilter);
+      if (params.department_id) query.append('department_id', params.department_id);
+      if (params.start_date) query.append('start_date', params.start_date);
+      if (params.end_date) query.append('end_date', params.end_date);
+    }
+    const q = query.toString() ? `?${query.toString()}` : '';
     return request<{ passes: IssuedPass[] }>(`/api/passes/all-issued-passes${q}`);
   },
 

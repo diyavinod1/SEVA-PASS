@@ -283,48 +283,50 @@ export const PublicVerificationPage: React.FC<PublicVerificationPageProps> = ({
           </div>
         </form>
 
-        {/* Quick Demo Scenarios Row */}
-        <div className="pt-3 border-t border-[#E2E8F0] flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-semibold text-[#64748B] flex items-center gap-1 mr-1">
-            <Sparkles className="w-3 h-3 text-[#B99A62]" />
-            <span>Test Scenarios:</span>
-          </span>
-          <button
-            type="button"
-            onClick={() => handleSimulateScenario('valid')}
-            className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 transition-colors"
-          >
-            Valid Pass
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSimulateScenario('expired')}
-            className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-300 transition-colors"
-          >
-            Expired Pass
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSimulateScenario('revoked')}
-            className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-red-50 text-red-800 hover:bg-red-100 border border-red-200 transition-colors"
-          >
-            Revoked Pass
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSimulateScenario('tampered')}
-            className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200 transition-colors"
-          >
-            Tampered Payload
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSimulateScenario('mismatch')}
-            className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 transition-colors"
-          >
-            Plate Mismatch
-          </button>
-        </div>
+        {/* Quick Demo Scenarios Row (Evaluation & Dev Only) */}
+        {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO === 'true') && (
+          <div className="pt-3 border-t border-[#E2E8F0] flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold text-[#64748B] flex items-center gap-1 mr-1">
+              <Sparkles className="w-3 h-3 text-[#B99A62]" />
+              <span>Test Scenarios:</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => handleSimulateScenario('valid')}
+              className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+            >
+              Valid Pass
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSimulateScenario('expired')}
+              className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-300 transition-colors"
+            >
+              Expired Pass
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSimulateScenario('revoked')}
+              className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-red-50 text-red-800 hover:bg-red-100 border border-red-200 transition-colors"
+            >
+              Revoked Pass
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSimulateScenario('tampered')}
+              className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200 transition-colors"
+            >
+              Tampered Payload
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSimulateScenario('mismatch')}
+              className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 transition-colors"
+            >
+              Plate Mismatch
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Error alert */}

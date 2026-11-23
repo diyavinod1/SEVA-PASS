@@ -261,17 +261,19 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
             <Keyboard className="w-3.5 h-3.5" />
             <span>Pass Code</span>
           </button>
-          <button
-            onClick={() => setActiveTab('demo')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-colors ${
-              activeTab === 'demo'
-                ? 'bg-white text-[#B99A62] font-semibold shadow-xs'
-                : 'text-[#64748B] hover:text-[#14243A]'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#B99A62]" />
-            <span>Test Passes</span>
-          </button>
+          {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO === 'true') && (
+            <button
+              onClick={() => setActiveTab('demo')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-colors ${
+                activeTab === 'demo'
+                  ? 'bg-white text-[#B99A62] font-semibold shadow-xs'
+                  : 'text-[#64748B] hover:text-[#14243A]'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#B99A62]" />
+              <span>Test Passes</span>
+            </button>
+          )}
         </div>
 
         {/* Content Body */}

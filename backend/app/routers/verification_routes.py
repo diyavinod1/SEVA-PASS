@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from app.database import get_db_connection, log_audit
 from app.crypto import signer
 from app.auth import get_current_user_optional, get_current_user, require_admin
+from app.config import settings
 from app.models import (
     PublicVerificationRequest,
     VerificationResponse,
@@ -306,7 +307,14 @@ def simulate_verification_scenario(req: DemoScenarioRunRequest, request: Request
     - 'revoked': Verifies an administratively revoked pass.
     - 'tampered': Simulates altered payload failing Ed25519 verification.
     - 'mismatch': Tests plate cross-matching mismatch.
+    Disabled in production unless explicitly enabled.
     """
+    if not settings.ENABLE_DEMO_ACCOUNTS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Scenario simulation endpoint is disabled in production environment."
+        )
+
     conn = get_db_connection()
     cursor = conn.cursor()
 

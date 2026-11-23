@@ -5,9 +5,9 @@ export interface UserProfile {
   username: string;
   email: string;
   full_name: string;
-  service_category: string;
-  service_number: string;
-  rank: string;
+  service_category?: string;
+  service_number?: string;
+  rank?: string;
   phone?: string;
   role: UserRole;
   account_type: string;
@@ -15,7 +15,10 @@ export interface UserProfile {
   department_name?: string | null;
   department_code?: string | null;
   status: string;
+  is_active?: boolean;
   must_change_password?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface AuthResponse {
@@ -179,18 +182,36 @@ export interface AuditLog {
 export interface AdminOverviewStats {
   metrics: {
     total_departments: number;
+    active_departments?: number;
     total_personnel: number;
     total_applications: number;
     pending_applications: number;
     approved_applications: number;
     rejected_applications: number;
+    total_passes?: number;
     active_passes: number;
+    expired_passes?: number;
+    revoked_passes?: number;
     inactive_or_expired_passes: number;
     total_verifications: number;
+    successful_verifications?: number;
+    failed_verifications?: number;
   };
   department_stats: Department[];
   recent_applications: any[];
   recent_passes: any[];
+  verification_breakdown?: Array<{ verification_result: string; count: number }>;
+  toll_breakdown?: Array<{ toll_plaza_name: string; total_scans: number; valid_scans: number }>;
+  security_info?: {
+    key_id: string;
+    algorithm: string;
+    public_key_fingerprint: string;
+    public_key_hex: string;
+    environment: string;
+    db_mode: string;
+    supabase_connected: boolean;
+    audit_logging_active: boolean;
+  };
 }
 
 export interface DepartmentOverviewStats {

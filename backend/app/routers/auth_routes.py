@@ -1,8 +1,10 @@
 import uuid
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from pydantic import BaseModel
 from app.database import get_db_connection, log_audit
+from app.config import settings
 from app.models import (
     LoginRequest,
     PersonnelRegisterRequest,
@@ -14,10 +16,20 @@ from app.auth import (
     verify_password,
     hash_password,
     create_access_token,
-    get_current_user
+    get_current_user,
+    require_admin
 )
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+class UserStatusUpdateRequest(BaseModel):
+    status: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class UserRoleUpdateRequest(BaseModel):
+    role: str
+    assigned_department_id: Optional[str] = None
+    account_type: Optional[str] = None
 
 MAX_FAILED_ATTEMPTS = 5
 LOCKOUT_DURATION_MINUTES = 15
@@ -327,12 +339,209 @@ def change_password(
 
     return {"status": "success", "message": "Password updated successfully."}
 
+@router.get("/users")
+def list_all_users(
+    department_id: Optional[str] = None,
+    role: Optional[str] = None,
+    search: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """
+    Returns platform user profiles for Central Admin personnel governance.
+    Includes department metadata and active status.
+    Excludes password_hash.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    query = """
+        SELECT p.id, p.username, p.email, p.full_name, p.service_category,
+               p.service_number, p.rank, p.phone, p.role, p.account_type,
+               p.assigned_department_id, p.status, p.is_active,
+               p.must_change_password, p.created_at, p.updated_at,
+               d.name as department_name, d.code as department_code
+        FROM profiles p
+        LEFT JOIN departments d ON p.assigned_department_id = d.id
+        WHERE 1=1
+    """
+    params = []
+
+    if department_id:
+        query += " AND p.assigned_department_id = ?"
+        params.append(department_id)
+
+    if role:
+        query += " AND p.role = ?"
+        params.append(role)
+
+    if status_filter:
+        query += " AND p.status = ?"
+        params.append(status_filter)
+
+    if search:
+        s = f"%{search.strip().lower()}%"
+        query += " AND (LOWER(p.username) LIKE ? OR LOWER(p.email) LIKE ? OR LOWER(p.full_name) LIKE ? OR LOWER(COALESCE(p.service_number, '')) LIKE ?)"
+        params.extend([s, s, s, s])
+
+    query += " ORDER BY p.created_at DESC"
+
+    cursor.execute(query, tuple(params))
+    rows = cursor.fetchall()
+    conn.close()
+
+    users = []
+    for r in rows:
+        u = dict(r)
+        u["is_active"] = bool(u.get("is_active"))
+        u["must_change_password"] = bool(u.get("must_change_password"))
+        users.append(u)
+
+    return {"users": users, "total": len(users)}
+
+@router.patch("/users/{user_id}/status")
+def update_user_status(
+    user_id: str,
+    req: UserStatusUpdateRequest,
+    request: Request,
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """
+    Allows Central Administrators to activate, suspend, or update status of user accounts.
+    Prevents self-deactivation.
+    """
+    if user_id == current_user["id"] and req.is_active is False:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Administrators cannot deactivate their own administrative account."
+        )
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM profiles WHERE id = ?", (user_id,))
+    target_user = cursor.fetchone()
+    if not target_user:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User account not found.")
+
+    updates = []
+    params = []
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    if req.status is not None:
+        updates.append("status = ?")
+        params.append(req.status)
+
+    if req.is_active is not None:
+        updates.append("is_active = ?")
+        params.append(req.is_active)
+
+    if not updates:
+        conn.close()
+        return {"status": "noop", "message": "No changes specified."}
+
+    updates.append("updated_at = ?")
+    params.append(now_iso)
+    params.append(user_id)
+
+    cursor.execute(f"UPDATE profiles SET {', '.join(updates)} WHERE id = ?", tuple(params))
+    conn.commit()
+    conn.close()
+
+    log_audit(
+        event_type="USER_STATUS_UPDATED",
+        actor_id=current_user["id"],
+        actor_email=current_user["email"],
+        actor_role=current_user["role"],
+        entity_type="USER_PROFILE",
+        entity_id=user_id,
+        outcome="SUCCESS",
+        details={
+            "target_username": target_user["username"],
+            "new_status": req.status,
+            "new_is_active": req.is_active
+        },
+        ip_address=request.client.host if request and request.client else "127.0.0.1"
+    )
+
+    return {"status": "success", "message": f"User {target_user['username']} status updated successfully."}
+
+@router.patch("/users/{user_id}/role")
+def update_user_role(
+    user_id: str,
+    req: UserRoleUpdateRequest,
+    request: Request,
+    current_user: Dict[str, Any] = Depends(require_admin)
+):
+    """
+    Allows Central Administrators to reassign roles and department assignments.
+    """
+    valid_roles = ["CENTRAL_ADMIN", "DEPARTMENT_HEAD", "PERSONNEL"]
+    if req.role not in valid_roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}"
+        )
+
+    if user_id == current_user["id"] and req.role != "CENTRAL_ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Central administrators cannot demote their own account role."
+        )
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM profiles WHERE id = ?", (user_id,))
+    target_user = cursor.fetchone()
+    if not target_user:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User account not found.")
+
+    account_type = req.account_type or ("admin" if req.role == "CENTRAL_ADMIN" else ("department" if req.role == "DEPARTMENT_HEAD" else "personnel"))
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    cursor.execute("""
+        UPDATE profiles
+        SET role = ?, account_type = ?, assigned_department_id = ?, updated_at = ?
+        WHERE id = ?
+    """, (req.role, account_type, req.assigned_department_id, now_iso, user_id))
+    conn.commit()
+    conn.close()
+
+    log_audit(
+        event_type="USER_ROLE_UPDATED",
+        actor_id=current_user["id"],
+        actor_email=current_user["email"],
+        actor_role=current_user["role"],
+        entity_type="USER_PROFILE",
+        entity_id=user_id,
+        outcome="SUCCESS",
+        details={
+            "target_username": target_user["username"],
+            "previous_role": target_user["role"],
+            "new_role": req.role,
+            "assigned_department_id": req.assigned_department_id
+        },
+        ip_address=request.client.host if request and request.client else "127.0.0.1"
+    )
+
+    return {"status": "success", "message": f"Role for {target_user['username']} updated to {req.role}."}
+
 @router.get("/demo-accounts")
 def get_demo_accounts():
     """
     Returns synthetic evaluation credentials for demonstration and review.
-    All records are synthetic.
+    All records are synthetic. Guarded by ENABLE_DEMO_ACCOUNTS in production.
     """
+    if not settings.ENABLE_DEMO_ACCOUNTS:
+        return {
+            "status": "disabled",
+            "notice": "Demo accounts endpoint disabled in production environment.",
+            "accounts": []
+        }
+
     return {
         "status": "operational",
         "notice": "Demonstration environment only. All identities are synthetic.",

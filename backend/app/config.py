@@ -63,7 +63,7 @@ class Settings:
     # CORS Origins
     _raw_cors = os.getenv(
         "CORS_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
+        "https://seva-pass-ui.onrender.com,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"
     )
     CORS_ORIGINS: List[str] = [origin.strip() for origin in _raw_cors.split(",") if origin.strip()]
     
@@ -96,6 +96,12 @@ class Settings:
     DEFAULT_ADMIN_USERNAME: str = os.getenv("SEVA_ADMIN_USER", "admin")
     DEFAULT_ADMIN_PASSWORD: str = os.getenv("SEVA_ADMIN_PASS", "SevaAdm!n#2026$Drdo")
     DEFAULT_ADMIN_EMAIL: str = os.getenv("SEVA_ADMIN_EMAIL", "admin@sevapass.internal")
+
+    # Demo accounts toggle (disabled by default in production)
+    ENABLE_DEMO_ACCOUNTS: bool = os.getenv(
+        "ENABLE_DEMO_ACCOUNTS",
+        "false" if os.getenv("ENVIRONMENT") == "production" else "true"
+    ).lower() in ("true", "1", "yes")
 
     def is_supabase_configured(self) -> bool:
         """Returns True if valid non-placeholder Supabase URL and service key are present."""

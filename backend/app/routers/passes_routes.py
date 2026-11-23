@@ -53,6 +53,13 @@ def submit_pass_application(
     app_number = f"APP-{year}-{random_suffix}"
     now_iso = datetime.now(timezone.utc).isoformat()
 
+    # Ensure applicant's profile is consistently linked to this department
+    if not current_user.get("assigned_department_id"):
+        cursor.execute(
+            "UPDATE profiles SET assigned_department_id = ?, updated_at = ? WHERE id = ?",
+            (req.department_id, now_iso, current_user["id"])
+        )
+
     cursor.execute("""
         INSERT INTO pass_applications
         (id, application_number, applicant_id, department_id, vehicle_registration_number, vehicle_type,
@@ -223,10 +230,11 @@ def get_department_applications(
             p.full_name as applicant_name, p.rank as applicant_rank, p.service_number as applicant_service_number,
             p.service_category as applicant_service_category, p.phone as applicant_phone, p.email as applicant_email,
             d.name as department_name, d.code as department_code,
-            ip.pass_code, ip.status as pass_status
+            ip.id as issued_pass_id, ip.pass_code, ip.status as pass_status
         FROM pass_applications pa
         JOIN profiles p ON pa.applicant_id = p.id
         JOIN departments d ON pa.department_id = d.id
+        LEFT JOIN issued_passes ip ON pa.id = ip.application_id
         WHERE 1=1
     """
     params = []
@@ -437,10 +445,13 @@ def review_pass_application(
 @router.get("/all-applications")
 def get_all_applications(
     status_filter: Optional[str] = None,
+    department_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     current_user: Dict[str, Any] = Depends(require_admin)
 ):
     """
-    Central admin view of all applications platform-wide.
+    Central admin view of all applications platform-wide with filtering.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -449,17 +460,28 @@ def get_all_applications(
         SELECT 
             pa.*,
             p.full_name as applicant_name, p.rank as applicant_rank, p.service_number as applicant_service_number,
+            p.service_category as applicant_service_category, p.phone as applicant_phone, p.email as applicant_email,
             d.name as department_name, d.code as department_code,
-            ip.pass_code, ip.status as pass_status
+            ip.id as issued_pass_id, ip.pass_code, ip.status as pass_status
         FROM pass_applications pa
         JOIN profiles p ON pa.applicant_id = p.id
         JOIN departments d ON pa.department_id = d.id
+        LEFT JOIN issued_passes ip ON pa.id = ip.application_id
         WHERE 1=1
     """
     params = []
+    if department_id and department_id.lower() != "all":
+        query += " AND pa.department_id = ?"
+        params.append(department_id)
     if status_filter and status_filter.lower() != "all":
         query += " AND LOWER(pa.status) = ?"
         params.append(status_filter.lower())
+    if start_date:
+        query += " AND pa.journey_date >= ?"
+        params.append(start_date)
+    if end_date:
+        query += " AND pa.journey_date <= ?"
+        params.append(end_date)
 
     query += " ORDER BY pa.created_at DESC"
     cursor.execute(query, params)
@@ -470,14 +492,17 @@ def get_all_applications(
 @router.get("/all-issued-passes")
 def get_all_issued_passes(
     status_filter: Optional[str] = None,
+    department_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
-    View issued passes.
+    View issued passes with multi-criteria filtering.
     Admin sees all; Department Head sees only their department's passes.
     """
     role = current_user.get("role", "").upper()
-    dept_id = current_user.get("assigned_department_id")
+    user_dept_id = current_user.get("assigned_department_id")
 
     if role not in ("CENTRAL_ADMIN", "ADMIN", "DEPARTMENT_HEAD"):
         raise HTTPException(status_code=403, detail="Unauthorized.")
@@ -491,7 +516,7 @@ def get_all_issued_passes(
             p.full_name as applicant_name, p.rank as applicant_rank, p.service_number as applicant_service_number,
             d.name as department_name, d.code as department_code,
             ib.full_name as issued_by_name,
-            pr.revocation_reason, pr.revoked_at
+            pr.revocation_reason, pr.revocation_category, pr.revoked_at
         FROM issued_passes ip
         JOIN profiles p ON ip.applicant_id = p.id
         JOIN departments d ON ip.department_id = d.id
@@ -503,11 +528,20 @@ def get_all_issued_passes(
 
     if role == "DEPARTMENT_HEAD":
         query += " AND ip.department_id = ?"
-        params.append(dept_id)
+        params.append(user_dept_id)
+    elif department_id and department_id.lower() != "all":
+        query += " AND ip.department_id = ?"
+        params.append(department_id)
 
     if status_filter and status_filter.lower() != "all":
         query += " AND LOWER(ip.status) = ?"
         params.append(status_filter.lower())
+    if start_date:
+        query += " AND ip.valid_from >= ?"
+        params.append(start_date)
+    if end_date:
+        query += " AND ip.valid_until <= ?"
+        params.append(end_date)
 
     query += " ORDER BY ip.created_at DESC"
     cursor.execute(query, params)

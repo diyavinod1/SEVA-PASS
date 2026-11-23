@@ -191,8 +191,10 @@ export const App: React.FC = () => {
         onScanResult={handleScanResult}
       />
 
-      {/* Evaluator 1-Click Demo Credentials Drawer */}
-      <DemoCredentialsDrawer onLoginSuccess={handleLoginSuccess} />
+      {/* Evaluator 1-Click Demo Credentials Drawer (Dev & Evaluation only) */}
+      {(import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO === 'true') && (
+        <DemoCredentialsDrawer onLoginSuccess={handleLoginSuccess} />
+      )}
     </div>
   );
 
