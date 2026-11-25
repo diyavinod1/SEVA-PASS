@@ -107,6 +107,12 @@ def test_department_head_approval_and_ed25519_issuance():
     res_login_p = client.post("/api/auth/login", json={"username_or_email": "priya.sharma", "password": "PriyaPass#2026$Duty"})
     p_headers = {"Authorization": f"Bearer {res_login_p.json()['access_token']}"}
 
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    start_dt = (now + timedelta(hours=1)).isoformat()
+    end_dt = (now + timedelta(hours=12)).isoformat()
+    j_date = now.strftime("%Y-%m-%d")
+
     app_res = client.post("/api/passes/apply", json={
         "department_id": "dept-wc-01",
         "vehicle_registration_number": "23D 554433X",
@@ -114,9 +120,9 @@ def test_department_head_approval_and_ed25519_issuance():
         "journey_origin": "Chandi Mandir",
         "journey_destination": "Shimla Transit Hub",
         "journey_purpose": "Operational inspection",
-        "journey_date": "2026-11-24",
-        "requested_start_time": "2026-11-24T06:00:00Z",
-        "requested_end_time": "2026-11-24T20:00:00Z"
+        "journey_date": j_date,
+        "requested_start_time": start_dt,
+        "requested_end_time": end_dt
     }, headers=p_headers)
     app_id = app_res.json()["application_id"]
 

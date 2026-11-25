@@ -250,18 +250,34 @@ def verify_pass_publicly(
             pass_code=pass_record["pass_code"]
         )
 
+    def _parse_utc_dt(val: Any) -> Optional[datetime]:
+        if val is None:
+            return None
+        if isinstance(val, datetime):
+            return val.astimezone(timezone.utc) if val.tzinfo else val.replace(tzinfo=timezone.utc)
+        try:
+            dt = datetime.fromisoformat(str(val).strip().replace("Z", "+00:00"))
+            return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+
     # Validity window exact matches
     signed_valid_from = signed_fields.get("valid_from")
-    if signed_valid_from and signed_valid_from != pass_record["valid_from"]:
-        return record_and_return(
-            "INVALID",
-            f"Cryptographic integrity violation: signed valid_from ('{signed_valid_from}') does not match registry valid_from ('{pass_record['valid_from']}').",
-            pass_id=pass_record["id"],
-            pass_code=pass_record["pass_code"]
-        )
+    if signed_valid_from:
+        dt_signed_from = _parse_utc_dt(signed_valid_from)
+        dt_db_from = _parse_utc_dt(pass_record["valid_from"])
+        if dt_signed_from is None or dt_db_from is None or dt_signed_from != dt_db_from:
+            return record_and_return(
+                "INVALID",
+                f"Cryptographic integrity violation: signed valid_from ('{signed_valid_from}') does not match registry valid_from ('{pass_record['valid_from']}').",
+                pass_id=pass_record["id"],
+                pass_code=pass_record["pass_code"]
+            )
 
     signed_valid_until = signed_fields.get("valid_until")
-    if not signed_valid_until or signed_valid_until != pass_record["valid_until"]:
+    dt_signed_until = _parse_utc_dt(signed_valid_until)
+    dt_db_until = _parse_utc_dt(pass_record["valid_until"])
+    if not signed_valid_until or dt_signed_until is None or dt_db_until is None or dt_signed_until != dt_db_until:
         return record_and_return(
             "INVALID",
             f"Cryptographic integrity violation: signed valid_until ('{signed_valid_until}') does not match registry valid_until ('{pass_record['valid_until']}').",
@@ -319,8 +335,8 @@ def verify_pass_publicly(
 
     # Step 5: Check Expiry
     try:
-        valid_until_dt = datetime.fromisoformat(pass_record["valid_until"])
-        if valid_until_dt < now:
+        valid_until_dt = _parse_utc_dt(pass_record["valid_until"])
+        if valid_until_dt and valid_until_dt < now:
             checks["not_expired"] = False
             return record_and_return(
                 "EXPIRED",
@@ -329,8 +345,8 @@ def verify_pass_publicly(
                     "pass_code": pass_record["pass_code"],
                     "department_name": pass_record["department_name"],
                     "vehicle_registration": pass_record["vehicle_registration_number"],
-                    "valid_from": pass_record["valid_from"],
-                    "valid_until": pass_record["valid_until"]
+                    "valid_from": pass_record["valid_from"].isoformat() if hasattr(pass_record["valid_from"], "isoformat") else pass_record["valid_from"],
+                    "valid_until": pass_record["valid_until"].isoformat() if hasattr(pass_record["valid_until"], "isoformat") else pass_record["valid_until"]
                 },
                 pass_id=pass_record["id"],
                 pass_code=pass_record["pass_code"],

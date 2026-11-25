@@ -346,8 +346,24 @@ def review_pass_application(
     dept_short = app_record["department_code"].split("-")[0] if "-" in app_record["department_code"] else app_record["department_code"]
     pass_code = f"SEVA-{year}-{dept_short}-{secrets.token_hex(2).upper()}"
 
-    valid_from = req.approved_start_time or app_record["requested_start_time"]
-    valid_until = req.approved_end_time or app_record["requested_end_time"]
+    raw_from = req.approved_start_time or app_record["requested_start_time"]
+    raw_until = req.approved_end_time or app_record["requested_end_time"]
+
+    def _to_utc_iso(val: Any) -> str:
+        if isinstance(val, datetime):
+            dt = val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc).isoformat()
+        s = str(val).strip()
+        try:
+            dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc).isoformat()
+        except ValueError:
+            return s
+
+    valid_from = _to_utc_iso(raw_from)
+    valid_until = _to_utc_iso(raw_until)
     confirmed_vehicle = req.confirmed_vehicle_reg or app_record["vehicle_registration_number"]
 
     pass_data_for_signing = {

@@ -65,7 +65,10 @@ def universal_login(req: LoginRequest, request: Request):
     # Check brute force lockout
     if user_dict.get("locked_until"):
         try:
-            lock_time = datetime.fromisoformat(user_dict["locked_until"])
+            raw_lock = user_dict["locked_until"]
+            lock_time = raw_lock if isinstance(raw_lock, datetime) else datetime.fromisoformat(str(raw_lock).replace("Z", "+00:00"))
+            if lock_time.tzinfo is None:
+                lock_time = lock_time.replace(tzinfo=timezone.utc)
             if lock_time > now:
                 conn.close()
                 mins_left = max(1, int((lock_time - now).total_seconds() / 60))
