@@ -501,7 +501,7 @@ export const DepartmentHeadPortal: React.FC<DepartmentHeadPortalProps> = ({ curr
                         </span>
                         <span className="font-semibold text-[#14243A] block">{app.journey_date}</span>
                         <span className="text-[#64748B] text-[11px] block">
-                          {app.requested_start_time.split('T')[1]?.slice(0, 5)} — {app.requested_end_time.split('T')[1]?.slice(0, 5)} UTC
+                          {new Date(app.requested_start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true })} — {new Date(app.requested_end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true })}
                         </span>
                       </div>
                     </div>

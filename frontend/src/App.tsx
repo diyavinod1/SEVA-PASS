@@ -20,6 +20,12 @@ export const App: React.FC = () => {
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [directVerifyCode, setDirectVerifyCode] = useState<string>('');
+  const [initialScanPayload, setInitialScanPayload] = useState<{
+    qr_payload?: string;
+    pass_code?: string;
+    scanned_vehicle_reg?: string;
+    timestamp: number;
+  } | null>(null);
 
   // Determine correct portal view from user's backend role
   const getPortalViewForUser = (user: UserProfile): string => {
@@ -96,6 +102,7 @@ export const App: React.FC = () => {
 
   const handleDirectVerify = (code: string) => {
     setDirectVerifyCode(code);
+    setInitialScanPayload({ pass_code: code, timestamp: Date.now() });
     setActiveView('verify');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -104,7 +111,21 @@ export const App: React.FC = () => {
     setIsScannerOpen(false);
     if (res.pass_code) {
       setDirectVerifyCode(res.pass_code);
+    } else if (res.qr_payload) {
+      try {
+        const parsed = JSON.parse(res.qr_payload);
+        if (parsed?.pass_code) {
+          setDirectVerifyCode(parsed.pass_code);
+        } else if (parsed?.payload?.pass_code) {
+          setDirectVerifyCode(parsed.payload.pass_code);
+        } else {
+          setDirectVerifyCode('');
+        }
+      } catch {
+        setDirectVerifyCode(res.qr_payload);
+      }
     }
+    setInitialScanPayload({ ...res, timestamp: Date.now() });
     setActiveView('verify');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -162,7 +183,10 @@ export const App: React.FC = () => {
         )}
 
         {activeView === 'verify' && (
-          <PublicVerificationPage initialCode={directVerifyCode} />
+          <PublicVerificationPage
+            initialCode={directVerifyCode}
+            initialScanPayload={initialScanPayload}
+          />
         )}
 
         {activeView === 'personnel' && currentUser && (

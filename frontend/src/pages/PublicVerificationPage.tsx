@@ -23,10 +23,17 @@ import { QRScannerModal } from '../components/QRScannerModal';
 
 interface PublicVerificationPageProps {
   initialCode?: string;
+  initialScanPayload?: {
+    qr_payload?: string;
+    pass_code?: string;
+    scanned_vehicle_reg?: string;
+    timestamp: number;
+  } | null;
 }
 
 export const PublicVerificationPage: React.FC<PublicVerificationPageProps> = ({
-  initialCode = ''
+  initialCode = '',
+  initialScanPayload = null
 }) => {
   const [passCodeInput, setPassCodeInput] = useState(initialCode);
   const [scannedPlateInput, setScannedPlateInput] = useState('');
@@ -37,11 +44,32 @@ export const PublicVerificationPage: React.FC<PublicVerificationPageProps> = ({
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
 
   useEffect(() => {
-    if (initialCode) {
+    if (initialScanPayload && (initialScanPayload.qr_payload || initialScanPayload.pass_code)) {
+      let extractedCode = initialScanPayload.pass_code || '';
+      if (!extractedCode && initialScanPayload.qr_payload) {
+        try {
+          const parsed = JSON.parse(initialScanPayload.qr_payload);
+          extractedCode = parsed?.pass_code || parsed?.payload?.pass_code || '';
+        } catch {
+          extractedCode = initialScanPayload.qr_payload;
+        }
+      }
+      if (extractedCode) {
+        setPassCodeInput(extractedCode);
+      }
+      if (initialScanPayload.scanned_vehicle_reg) {
+        setScannedPlateInput(initialScanPayload.scanned_vehicle_reg);
+      }
+      executeVerification({
+        qr_payload: initialScanPayload.qr_payload,
+        pass_code: initialScanPayload.pass_code,
+        scanned_vehicle_reg: initialScanPayload.scanned_vehicle_reg
+      });
+    } else if (initialCode) {
       setPassCodeInput(initialCode);
       executeVerification({ pass_code: initialCode });
     }
-  }, [initialCode]);
+  }, [initialScanPayload, initialCode]);
 
   const executeVerification = async (params: {
     pass_code?: string;

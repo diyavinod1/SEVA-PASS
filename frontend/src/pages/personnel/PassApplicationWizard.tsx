@@ -124,8 +124,8 @@ export const PassApplicationWizard: React.FC<PassApplicationWizardProps> = ({
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    const requested_start = `${formData.journey_date}T${formData.start_time}:00Z`;
-    const requested_end = `${formData.journey_date}T${formData.end_time}:00Z`;
+    const requested_start = new Date(`${formData.journey_date}T${formData.start_time}:00`).toISOString();
+    const requested_end = new Date(`${formData.journey_date}T${formData.end_time}:00`).toISOString();
 
     try {
       const resp = await api.submitPassApplication({
