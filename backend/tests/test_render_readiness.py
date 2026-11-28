@@ -92,6 +92,8 @@ def test_personnel_apply_department_approve_and_sign():
     token_p = res_p.json()["access_token"]
 
     # 2. Submit application
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
     app_res = client.post("/api/passes/apply", json={
         "department_id": "dept-wc-01",
         "vehicle_registration_number": "24B 119988M",
@@ -99,9 +101,9 @@ def test_personnel_apply_department_approve_and_sign():
         "journey_origin": "Chandi Mandir",
         "journey_destination": "Shimla Camp",
         "journey_purpose": "Security convoy inspection",
-        "journey_date": "2026-11-26",
-        "requested_start_time": "2026-11-26T08:00:00Z",
-        "requested_end_time": "2026-11-26T18:00:00Z"
+        "journey_date": now.strftime("%Y-%m-%d"),
+        "requested_start_time": (now + timedelta(hours=1)).isoformat(),
+        "requested_end_time": (now + timedelta(hours=12)).isoformat()
     }, headers={"Authorization": f"Bearer {token_p}"})
     assert app_res.status_code == 200
     app_id = app_res.json()["application_id"]

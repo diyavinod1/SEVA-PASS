@@ -49,7 +49,7 @@ export const PublicVerificationPage: React.FC<PublicVerificationPageProps> = ({
       if (!extractedCode && initialScanPayload.qr_payload) {
         try {
           const parsed = JSON.parse(initialScanPayload.qr_payload);
-          extractedCode = parsed?.pass_code || parsed?.payload?.pass_code || '';
+          extractedCode = parsed?.pass_code || parsed?.p || parsed?.payload?.pass_code || '';
         } catch {
           extractedCode = initialScanPayload.qr_payload;
         }

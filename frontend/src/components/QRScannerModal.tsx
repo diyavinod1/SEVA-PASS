@@ -83,9 +83,12 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
         console.warn('getCameras failed or not supported:', camErr);
       }
 
-      // 2. Instantiate scanner on the dedicated empty div
+      // 2. Instantiate scanner with native hardware BarcodeDetector acceleration when supported
       const scanner = new Html5Qrcode(scannerContainerId, {
         formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true
+        },
         verbose: false
       });
       html5QrCodeRef.current = scanner;
@@ -104,14 +107,10 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
         onClose();
       };
 
-      // 4. Scanner config with adaptive sizing
+      // 4. High-FPS full-frame config for rapid QR grasping
       const config = {
-        fps: 15,
-        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          const edge = Math.min(viewfinderWidth, viewfinderHeight);
-          const size = Math.max(180, Math.floor(edge * 0.72));
-          return { width: size, height: size };
-        },
+        fps: 25,
+        disableFlip: false,
         aspectRatio: 1.333333
       };
 

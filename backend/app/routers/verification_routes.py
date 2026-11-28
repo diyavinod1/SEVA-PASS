@@ -131,6 +131,22 @@ def verify_pass_publicly(
         try:
             parsed = json.loads(raw_payload)
             if isinstance(parsed, dict):
+                # Support both full JSON credentials and compact QR payloads {"p", "k", "s"}
+                if "p" in parsed and "pass_code" not in parsed:
+                    parsed["pass_code"] = parsed["p"]
+                if "k" in parsed and "key_id" not in parsed:
+                    parsed["key_id"] = parsed["k"]
+                if "s" in parsed and "signature" not in parsed:
+                    import base64
+                    sig_val = parsed["s"]
+                    if isinstance(sig_val, str) and len(sig_val) != 128:
+                        try:
+                            padded = sig_val + "=" * (-len(sig_val) % 4)
+                            parsed["signature"] = base64.urlsafe_b64decode(padded.encode("ascii")).hex()
+                        except Exception:
+                            parsed["signature"] = sig_val
+                    else:
+                        parsed["signature"] = sig_val
                 embedded_credential = parsed
                 pass_code_to_check = parsed.get("pass_code") or parsed.get("payload", {}).get("pass_code")
         except Exception:

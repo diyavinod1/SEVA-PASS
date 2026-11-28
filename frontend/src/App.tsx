@@ -116,6 +116,8 @@ export const App: React.FC = () => {
         const parsed = JSON.parse(res.qr_payload);
         if (parsed?.pass_code) {
           setDirectVerifyCode(parsed.pass_code);
+        } else if (parsed?.p) {
+          setDirectVerifyCode(parsed.p);
         } else if (parsed?.payload?.pass_code) {
           setDirectVerifyCode(parsed.payload.pass_code);
         } else {

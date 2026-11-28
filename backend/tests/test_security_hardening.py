@@ -173,7 +173,7 @@ def test_cryptographic_verification_tamper_and_unknown_key():
     assert "integrity violation" in r8.json()["message"].lower()
 
     # Restore original journey origin
-    cur.execute("UPDATE issued_passes SET journey_origin = 'Western Command HQ, Chandimandir' WHERE pass_code = 'SEVA-2026-WC-1045'")
+    cur.execute("UPDATE issued_passes SET journey_origin = 'HQ Western Command, Chandi Mandir' WHERE pass_code = 'SEVA-2026-WC-1045'")
     conn.commit()
     conn.close()
 

@@ -163,22 +163,94 @@ class Ed25519Signer:
         }
         return credential
 
+    def compact_qr_payload(self, qr_content: str) -> str:
+        """
+        Compresses a full SEVA PASS JSON credential into a minimal compact format
+        ({"p": pass_code, "k": key_id, "s": base64url_signature}) so the generated QR
+        code has large, low-density modules that cameras grasp rapidly.
+        """
+        try:
+            parsed = json.loads(qr_content)
+            if isinstance(parsed, dict) and "signature" in parsed and ("pass_code" in parsed or "payload" in parsed):
+                pass_code = parsed.get("pass_code") or parsed.get("payload", {}).get("pass_code")
+                key_id = parsed.get("key_id", self.key_id)
+                sig_hex = parsed["signature"]
+                sig_b64 = base64.urlsafe_b64encode(bytes.fromhex(sig_hex)).decode("ascii").rstrip("=")
+                return json.dumps({"p": pass_code, "k": key_id, "s": sig_b64}, separators=(",", ":"))
+        except Exception:
+            pass
+        return qr_content
+
     def generate_qr_data_url(self, qr_content: str) -> str:
         """
-        Encodes content as a high-density PNG QR code and returns as data URL.
+        Encodes compact credential content as a crisp PNG QR code with high error
+        correction (H) and a centered SEVA PASS shield emblem, returned as a data URL.
         """
+        from PIL import Image, ImageDraw
+
+        compact_content = self.compact_qr_payload(qr_content)
+
         qr = qrcode.QRCode(
             version=None,
-            error_correction=qrcode.constants.ERROR_CORRECT_M,
-            box_size=8,
-            border=2,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=10,
+            border=4,
         )
-        qr.add_data(qr_content)
+        qr.add_data(compact_content)
         qr.make(fit=True)
-        img = qr.make_image(fill_color="#14243A", back_color="#FFFFFF")
-        
+        img = qr.make_image(fill_color="#14243A", back_color="#FFFFFF").convert("RGBA")
+
+        # Draw centered SEVA PASS shield logo (~18% of QR width; safe under ERROR_CORRECT_H 30%)
+        w, h = img.size
+        badge_size = max(36, int(w * 0.18))
+        pad = max(6, int(badge_size * 0.14))
+        total_box = badge_size + pad * 2
+        bx0 = (w - total_box) // 2
+        by0 = (h - total_box) // 2
+
+        draw = ImageDraw.Draw(img)
+        # White quiet pad around center logo
+        draw.rounded_rectangle(
+            [bx0, by0, bx0 + total_box, by0 + total_box],
+            radius=max(6, total_box // 6),
+            fill="#FFFFFF",
+        )
+        # Navy badge with gold border
+        lx0, ly0 = bx0 + pad, by0 + pad
+        lx1, ly1 = lx0 + badge_size, ly0 + badge_size
+        draw.rounded_rectangle(
+            [lx0, ly0, lx1, ly1],
+            radius=max(4, badge_size // 6),
+            fill="#14243A",
+            outline="#B99A62",
+            width=max(2, badge_size // 18),
+        )
+        # Centered gold shield polygon inside badge
+        cx, cy = (lx0 + lx1) / 2, (ly0 + ly1) / 2
+        sw, sh = badge_size * 0.46, badge_size * 0.56
+        shield_pts = [
+            (cx, cy - sh * 0.52),
+            (cx + sw * 0.52, cy - sh * 0.30),
+            (cx + sw * 0.44, cy + sh * 0.16),
+            (cx, cy + sh * 0.54),
+            (cx - sw * 0.44, cy + sh * 0.16),
+            (cx - sw * 0.52, cy - sh * 0.30),
+        ]
+        draw.polygon(shield_pts, fill="#B99A62")
+        # Crisp navy checkmark inside shield
+        tick_w = max(2, int(badge_size * 0.08))
+        draw.line(
+            [
+                (cx - sw * 0.22, cy + sh * 0.02),
+                (cx - sw * 0.04, cy + sh * 0.20),
+                (cx + sw * 0.24, cy - sh * 0.14),
+            ],
+            fill="#14243A",
+            width=tick_w,
+        )
+
         buffer = io.BytesIO()
-        img.save(buffer, format="PNG")
+        img.convert("RGB").save(buffer, format="PNG")
         encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
         return f"data:image/png;base64,{encoded}"
 
